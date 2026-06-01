@@ -1,10 +1,8 @@
 const fetch = require('node-fetch');
 const fs = require('fs');
-
 const TOKEN = process.env.CF_TOKEN;
 const ACCOUNT = process.env.CF_ACCOUNT;
 const BASE = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}`;
-
 async function api(method, path, body) {
   const r = await fetch(BASE + path, {
     method,
@@ -16,9 +14,7 @@ async function api(method, path, body) {
   });
   return r.json();
 }
-
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
 async function main() {
   // 1. Create KV namespace
   console.log('Creating KV namespace...');
@@ -29,7 +25,6 @@ async function main() {
     nsId = kv.result.id;
     console.log('KV created:', nsId);
   } else {
-    // Maybe already exists - list and find
     console.log('KV error:', JSON.stringify(kv.errors));
     const list = await api('GET', '/storage/kv/namespaces');
     const existing = list.result?.find(n => n.title === 'BARCODES');
@@ -41,10 +36,9 @@ async function main() {
     }
   }
   
-  // Save namespace ID for worker deploy
   fs.writeFileSync('kv_namespace_id.txt', nsId);
   
-  // 2. Upload products in bulk batches of 10000
+  // 2. Upload products
   const products = JSON.parse(fs.readFileSync('products.json', 'utf8'));
   console.log(`Uploading ${products.length} products...`);
   
@@ -60,10 +54,7 @@ async function main() {
     let success = false;
     for(let attempt = 0; attempt < 3; attempt++) {
       const r = await api('PUT', `/storage/kv/namespaces/${nsId}/bulk`, chunk);
-      if(r.success) {
-        success = true;
-        break;
-      }
+      if(r.success) { success = true; break; }
       console.log(`Retry ${attempt+1}:`, JSON.stringify(r.errors));
       await sleep(2000);
     }
@@ -73,24 +64,90 @@ async function main() {
     await sleep(200);
   }
   
-  // 3. Deploy Worker
+  // 3. Deploy Worker з Listex парсингом
   console.log('Deploying worker...');
   const workerCode = `
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const ean = url.pathname.slice(1).trim();
-    if(!ean) return new Response('EAN required', {status: 400});
-    
-    const data = await env.BARCODES.get(ean);
-    if(!data) return new Response(JSON.stringify({found: false}), {
-      headers: {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}
-    });
-    
-    const product = JSON.parse(data);
-    return new Response(JSON.stringify({found: true, ...product}), {
-      headers: {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}
-    });
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    };
+
+    if (!ean || ean.length < 4) {
+      return new Response(JSON.stringify({ found: false }), { headers });
+    }
+
+    // 1. Основна KV база (41к товарів)
+    const kvVal = await env.BARCODES.get(ean);
+    if (kvVal) {
+      const data = JSON.parse(kvVal);
+      return new Response(JSON.stringify({ found: true, ...data, source: 'kv' }), { headers });
+    }
+
+    // 2. KV кеш Listex (раніше знайдені)
+    const cached = await env.BARCODES.get('lx_' + ean);
+    if (cached) {
+      const data = JSON.parse(cached);
+      return new Response(JSON.stringify({ found: true, ...data, source: 'cache' }), { headers });
+    }
+
+    // 3. Парсимо Listex
+    try {
+      const res = await fetch('https://listex.info/uk/search?barcode=' + ean, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+          'Accept': 'text/html',
+          'Accept-Language': 'uk-UA,uk;q=0.9'
+        },
+        signal: AbortSignal.timeout(6000)
+      });
+
+      if (res.ok) {
+        const html = await res.text();
+
+        let title = '';
+
+        // og:title
+        const ogMatch = html.match(/property="og:title"[^>]+content="([^"]+)"/i)
+                     || html.match(/content="([^"]+)"[^>]+property="og:title"/i);
+        if (ogMatch) {
+          title = ogMatch[1].replace(/\\s+на Listex\\.info.*/i, '').replace(/\\s*\\|.*$/, '').trim();
+        }
+
+        // h1
+        if (!title || title.length < 3) {
+          const h1 = html.match(/<h1[^>]*>([^<]+)<\\/h1>/i);
+          if (h1) title = h1[1].trim();
+        }
+
+        const is404 = html.includes('СТОРІНКА НЕ ЗНАЙДЕНА') || html.includes('Нічого не знайдено');
+
+        if (title && title.length > 3 && !is404) {
+          let unit = 'шт';
+          const t = title.toLowerCase();
+          if (/\\d\\s*кг|kg/.test(t)) unit = 'кг';
+          else if (/\\d\\s*г\\b/.test(t)) unit = 'г';
+          else if (/\\d\\s*л\\b/.test(t)) unit = 'л';
+          else if (/\\d\\s*мл|ml/.test(t)) unit = 'мл';
+
+          // Кешуємо на 30 днів
+          await env.BARCODES.put('lx_' + ean, JSON.stringify({ title, unit }), {
+            expirationTtl: 60 * 60 * 24 * 30
+          });
+
+          return new Response(JSON.stringify({ found: true, title, unit, source: 'listex' }), { headers });
+        }
+      }
+    } catch(e) {
+      // Listex недоступний
+    }
+
+    // 4. Не знайдено
+    return new Response(JSON.stringify({ found: false, ean }), { headers });
   }
 };`;
 
@@ -116,11 +173,9 @@ export default {
   const wData = await wRes.json();
   
   if(wData.success) {
-    console.log('✅ Worker deployed!');
-    console.log('URL: https://scancount-barcode.' + ACCOUNT.slice(0,8) + '.workers.dev');
+    console.log('✅ Worker deployed з Listex парсингом!');
   } else {
     console.log('Worker error:', JSON.stringify(wData.errors));
   }
 }
-
 main().catch(e => { console.error(e); process.exit(1); });
