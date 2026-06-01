@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ScanCount — Парсер</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --border: #2a2a2a;
+    --accent: #f5c518; --text: #f0f0f0; --muted: #666;
+    --success: #4caf50; --error: #f44336;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100dvh; display: flex; flex-direction: column;
+  }
+
+  header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; gap: 12px;
+  }
+
+  .back-btn {
+    background: none; border: none; color: var(--accent);
+    font-size: 20px; cursor: pointer; padding: 0 4px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif; font-size: 24px;
+    letter-spacing: 2px; color: var(--accent);
+  }
+
+  .subtitle { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  .content { padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+    letter-spacing: 1px; color: var(--accent); margin-bottom: 6px;
+  }
+
+  .info-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; font-size: 13px;
+    color: var(--muted); line-height: 1.6;
+  }
+
+  .info-box code {
+    background: var(--bg); color: var(--accent); padding: 1px 5px;
+    border-radius: 3px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  }
+
+  textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    padding: 12px; border-radius: 8px; resize: vertical;
+    min-height: 120px; outline: none;
+  }
+
+  textarea:focus { border-color: var(--accent); }
+
+  .file-drop {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 24px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s; background: var(--surface);
+  }
+
+  .file-drop:active, .file-drop.dragover { border-color: var(--accent); }
+
+  .file-drop p { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .file-drop .icon { font-size: 32px; }
+
+  input[type=file] { display: none; }
+
+  .btn {
+    background: var(--accent); color: #000; border: none;
+    padding: 12px; border-radius: 8px; font-weight: 700;
+    font-size: 14px; cursor: pointer; width: 100%;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+
+  .btn:active { opacity: 0.7; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+  .preview-table {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; display: none;
+  }
+
+  .preview-table.visible { display: block; }
+
+  .preview-row {
+    display: grid; grid-template-columns: 2fr 1fr 60px;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    font-size: 12px; gap: 8px; align-items: center;
+  }
+
+  .preview-row.header {
+    background: var(--bg); color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    font-weight: 600; text-transform: uppercase;
+  }
+
+  .preview-row:last-child { border-bottom: none; }
+
+  .ean-text { font-family: 'IBM Plex Mono', monospace; color: var(--accent); font-size: 11px; }
+
+  .status-bar {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; display: none;
+  }
+
+  .status-bar.visible { display: block; }
+
+  .progress-line {
+    height: 4px; background: var(--border); border-radius: 2px;
+    overflow: hidden; margin: 8px 0;
+  }
+
+  .progress-fill {
+    height: 100%; background: var(--accent); border-radius: 2px;
+    transition: width 0.3s; width: 0%;
+  }
+
+  .status-text {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    color: var(--muted);
+  }
+
+  .col-map {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; display: none;
+  }
+
+  .col-map.visible { display: block; }
+
+  .col-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px; font-size: 13px;
+  }
+
+  .col-row label { width: 80px; color: var(--muted); font-size: 12px; }
+
+  select {
+    flex: 1; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; outline: none;
+  }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--success); color: #fff; font-weight: 600;
+    font-size: 14px; padding: 10px 20px; border-radius: 24px;
+    z-index: 999; transition: transform 0.3s ease; white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--error); }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div class="logo">Парсер CSV</div>
+  <span class="subtitle">Імпорт товарів</span>
+</header>
+
+<div class="content">
+  <div>
+    <div class="section-title">Завантажити файл</div>
+    <div class="info-box">
+      Формат CSV: <code>EAN;Назва;Одиниця</code><br>
+      або Excel (xls, xlsx) — розділювач <code>;</code> або <code>,</code><br>
+      Перший рядок — заголовки (пропускається)
+    </div>
+  </div>
+
+  <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📁</div>
+    <p>Натисніть щоб вибрати файл</p>
+    <p>CSV, TXT</p>
+    <input type="file" id="fileInput" accept=".csv,.txt,.tsv" onchange="handleFile(event)">
+  </div>
+
+  <div>
+    <div class="section-title">Або вставте текст</div>
+    <textarea id="pasteArea" placeholder="4820017000062;Вода Моршинська 0.5л;шт&#10;4820000000000;Молоко 2.5%;л"></textarea>
+    <button class="btn btn-secondary" style="margin-top:8px" onclick="parseText()">Розпарсити текст</button>
+  </div>
+
+  <div class="col-map" id="colMap">
+    <div class="section-title" style="margin-bottom:10px">Налаштування колонок</div>
+    <div class="col-row">
+      <label>EAN колонка</label>
+      <select id="colEan"></select>
+    </div>
+    <div class="col-row">
+      <label>Назва</label>
+      <select id="colTitle"></select>
+    </div>
+    <div class="col-row">
+      <label>Одиниця</label>
+      <select id="colUnit">
+        <option value="-1">— авто "шт" —</option>
+      </select>
+    </div>
+    <button class="btn btn-secondary" style="margin-top:4px" onclick="applyColumns()">Застосувати</button>
+  </div>
+
+  <div class="preview-table" id="previewTable">
+    <div class="preview-row header">
+      <span>Назва</span><span>EAN</span><span>Од.</span>
+    </div>
+    <div id="previewRows"></div>
+  </div>
+
+  <div id="parseStats" style="font-size:12px;color:var(--muted);display:none">
+    Знайдено: <span id="parseCount" style="color:var(--accent);font-weight:600">0</span> записів
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <div class="status-text" id="statusText">Готово</div>
+    <div class="progress-line"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="status-text" id="statusSub"></div>
+  </div>
+
+  <button class="btn" id="saveBtn" onclick="saveToLocalStorage()" style="display:none">
+    💾 Зберегти в локальну базу
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let parsedProducts = [];
+let rawHeaders = [];
+let rawRows = [];
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('pasteArea').value = ev.target.result;
+    parseText();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Drag and drop
+const drop = document.getElementById('fileDrop');
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault(); drop.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('pasteArea').value = ev.target.result;
+    parseText();
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+function detectDelimiter(line) {
+  const counts = { ';': (line.match(/;/g)||[]).length, ',': (line.match(/,/g)||[]).length, '\t': (line.match(/\t/g)||[]).length };
+  return Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+}
+
+function parseText() {
+  const text = document.getElementById('pasteArea').value.trim();
+  if (!text) return toast('Вставте дані', true);
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return toast('Замало рядків', true);
+
+  const delim = detectDelimiter(lines[0]);
+  rawHeaders = lines[0].split(delim).map(h => h.trim().replace(/^["']|["']$/g, ''));
+  rawRows = lines.slice(1).map(l => l.split(delim).map(c => c.trim().replace(/^["']|["']$/g, '')));
+
+  // Auto-detect columns
+  const eanIdx = rawHeaders.findIndex(h => /ean|barcode|штрих|код/i.test(h));
+  const titleIdx = rawHeaders.findIndex(h => /назв|name|title|товар/i.test(h));
+  const unitIdx = rawHeaders.findIndex(h => /одиниц|unit|од\b/i.test(h));
+
+  // Populate selects
+  const selEan = document.getElementById('colEan');
+  const selTitle = document.getElementById('colTitle');
+  const selUnit = document.getElementById('colUnit');
+
+  [selEan, selTitle].forEach(s => { s.innerHTML = ''; });
+  selUnit.innerHTML = '<option value="-1">— авто "шт" —</option>';
+
+  rawHeaders.forEach((h, i) => {
+    [selEan, selTitle, selUnit].forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = `[${i}] ${h}`;
+      s.appendChild(opt);
+    });
+  });
+
+  if (eanIdx >= 0) selEan.value = eanIdx;
+  if (titleIdx >= 0) selTitle.value = titleIdx;
+  if (unitIdx >= 0) selUnit.value = unitIdx;
+
+  document.getElementById('colMap').classList.add('visible');
+  applyColumns();
+}
+
+function applyColumns() {
+  const eanCol = parseInt(document.getElementById('colEan').value);
+  const titleCol = parseInt(document.getElementById('colTitle').value);
+  const unitCol = parseInt(document.getElementById('colUnit').value);
+
+  parsedProducts = [];
+  for (const row of rawRows) {
+    const ean = (row[eanCol] || '').replace(/\D/g, '');
+    const title = row[titleCol] || '';
+    const unit = unitCol >= 0 ? (row[unitCol] || 'шт') : 'шт';
+    if (ean.length >= 8 && title) {
+      parsedProducts.push({ ean, title, unit });
+    }
+  }
+
+  renderPreview();
+  document.getElementById('parseStats').style.display = 'block';
+  document.getElementById('parseCount').textContent = parsedProducts.length;
+  document.getElementById('saveBtn').style.display = parsedProducts.length > 0 ? 'block' : 'none';
+}
+
+function renderPreview() {
+  const container = document.getElementById('previewRows');
+  const preview = parsedProducts.slice(0, 6);
+  container.innerHTML = preview.map(p => `
+    <div class="preview-row">
+      <span>${p.title.slice(0, 40)}</span>
+      <span class="ean-text">${p.ean}</span>
+      <span>${p.unit}</span>
+    </div>
+  `).join('');
+  if (parsedProducts.length > 6) {
+    container.innerHTML += `<div style="padding:8px 12px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace">... ще ${parsedProducts.length - 6} записів</div>`;
+  }
+  document.getElementById('previewTable').classList.add('visible');
+}
+
+function saveToLocalStorage() {
+  if (parsedProducts.length === 0) return toast('Немає даних', true);
+
+  const existing = JSON.parse(localStorage.getItem('scancount_db') || '{}');
+  let added = 0;
+  for (const p of parsedProducts) {
+    if (!existing[p.ean]) added++;
+    existing[p.ean] = { title: p.title, unit: p.unit };
+  }
+
+  try {
+    localStorage.setItem('scancount_db', JSON.stringify(existing));
+    toast(`Збережено ${parsedProducts.length} товарів (нових: ${added})`);
+
+    const bar = document.getElementById('statusBar');
+    bar.classList.add('visible');
+    document.getElementById('statusText').textContent = `✅ Успішно збережено ${parsedProducts.length} товарів`;
+    document.getElementById('statusSub').textContent = `Нових: ${added} · Оновлено: ${parsedProducts.length - added}`;
+    document.getElementById('progressFill').style.width = '100%';
+  } catch(e) {
+    toast('Помилка: localStorage повний', true);
+  }
+}
+
+function toast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
