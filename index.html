@@ -1,780 +1,2406 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ScanCount</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Переоблік</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Cloudflare Worker -->
+  <script>
+    const WORKER_URL = 'https://scancount-barcode.scancount-service.workers.dev';
 
-  :root {
-    --bg: #0f0f0f;
-    --surface: #1a1a1a;
-    --border: #2a2a2a;
-    --accent: #f5c518;
-    --accent2: #ff6b35;
-    --text: #f0f0f0;
-    --muted: #666;
-    --success: #4caf50;
-    --error: #f44336;
-    --worker: https://scancount-barcode.scancount-service.workers.dev;
-  }
+    window.firebaseLookupEAN = async function(ean) {
+      try {
+        const r = await fetch(WORKER_URL + '/' + ean, { signal: AbortSignal.timeout(5000) });
+        const d = await r.json();
+        if(d.found) return { title: d.title, unit: d.unit || 'шт' };
+        return null;
+      } catch(e) {
+        console.error("Worker lookup error:", e);
+        return null;
+      }
+    };
 
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    window.firebaseSaveProduct = async function(ean, title, unit) {
+      // Worker is read-only — зберігаємо локально
+      try {
+        const db = JSON.parse(localStorage.getItem('scancount_learned') || '{}');
+        db[ean] = { title, unit: unit || 'шт' };
+        localStorage.setItem('scancount_learned', JSON.stringify(db));
+        console.log("✅ Saved locally:", ean, title);
+      } catch(e) {}
+    };
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'IBM Plex Sans', sans-serif;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow-x: hidden;
-  }
+    window._firebaseReady = true;
+    console.log("✅ Cloudflare Worker connected");
+  </script>
 
-  /* HEADER */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
+  <!-- External barcode lookup: Open Food Facts + UPC Item DB -->
+  <script>
+    function detectUnit(text) {
+      if(!text) return 'шт';
+      if(/кг|kg/i.test(text)) return 'кг';
+      if(/мл|ml/i.test(text)) return 'мл';
+      if(/[0-9]\s*л|[0-9]\s*l/i.test(text)) return 'л';
+      if(/[0-9]\s*г|[0-9]\s*g/i.test(text)) return 'г';
+      return 'шт';
+    }
 
-  .logo {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 26px;
-    letter-spacing: 2px;
-    color: var(--accent);
-  }
+    window.listexLookup = async function(ean) {
+      // 1. Open Food Facts
+      try {
+        const r = await fetch(
+          'https://world.openfoodfacts.org/api/v2/product/' + ean + '.json?fields=product_name_uk,product_name_ru,product_name,quantity',
+          { signal: AbortSignal.timeout(7000) }
+        );
+        const d = await r.json();
+        console.log('OFF response status:', d.status, 'product:', d.product?.product_name);
+        if(d.status === 1 && d.product) {
+          const p = d.product;
+          const name = p.product_name_uk || p.product_name_ru || p.product_name || '';
+          if(name && name.length > 2) {
+            const qty = p.quantity || '';
+            const title = name + (qty ? ' ' + qty : '');
+            return { title, unit: detectUnit(qty || name) };
+          }
+        }
+      } catch(e) { console.log('OFF:', e.message); }
 
-  .session-info {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    text-align: right;
-  }
+      // 2. UPC Item DB
+      try {
+        const r2 = await fetch(
+          'https://api.upcitemdb.com/prod/trial/lookup?upc=' + ean,
+          { signal: AbortSignal.timeout(7000) }
+        );
+        const d2 = await r2.json();
+        if(d2.code === 'OK' && d2.items && d2.items[0]) {
+          const title = d2.items[0].title || '';
+          if(title.length > 2) return { title, unit: detectUnit(title) };
+        }
+      } catch(e) { console.log('UPC ItemDB:', e.message); }
 
-  .session-info span {
-    color: var(--accent);
-    font-weight: 600;
-  }
+      return null;
+    };
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* TABS */
-  .tabs {
-    display: flex;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-  }
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --surface2: #f0ede8;
+      --border: #e2ddd8;
+      --border2: #ccc8c2;
+      --text: #1a1916;
+      --text2: #6b6760;
+      --text3: #9e9a95;
+      --accent: #1a4a8a;
+      --accent-bg: #e8eef7;
+      --accent-text: #1a4a8a;
+      --success: #1a6640;
+      --success-bg: #e6f4ec;
+      --warn: #7a4a00;
+      --warn-bg: #fdf3e0;
+      --danger: #a02020;
+      --danger-bg: #faeaea;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Manrope', sans-serif;
+      --radius: 10px;
+      --radius-lg: 14px;
+    }
 
-  .tab {
-    flex: 1;
-    padding: 10px 8px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-  .tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
+    /* ── HEADER ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-  /* PANELS */
-  .panel { display: none; flex: 1; flex-direction: column; }
-  .panel.active { display: flex; }
+    /* ── LAYOUT ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
 
-  /* SCAN PANEL */
-  .scan-area {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
 
-  .input-row {
-    display: flex;
-    gap: 8px;
-  }
+    .page-title svg {
+      color: var(--accent);
+    }
 
-  .barcode-input {
-    flex: 1;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 18px;
-    padding: 12px 14px;
-    border-radius: 8px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
+    /* ── TOP ACTIONS ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
 
-  .barcode-input:focus {
-    border-color: var(--accent);
-  }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  .btn {
-    background: var(--accent);
-    color: #000;
-    border: none;
-    padding: 12px 18px;
-    border-radius: 8px;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: opacity 0.15s;
-    -webkit-tap-highlight-color: transparent;
-  }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 38px;
+      padding: 0 16px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--surface2); border-color: var(--border2); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: #153d73; }
+    .btn.danger { background: var(--danger-bg); border-color: #e0aaaa; color: var(--danger); }
+    .btn.danger:hover { background: #f5d5d5; }
 
-  .btn:active { opacity: 0.7; }
+    /* ── SCAN CARD ── */
+    .scan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
 
-  .btn-secondary {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+    }
 
-  .btn-danger {
-    background: var(--error);
-    color: #fff;
-  }
+    .scan-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
 
-  /* RESULT CARD */
-  .result-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    display: none;
-    animation: slideIn 0.15s ease;
-  }
+    .scan-input {
+      flex: 1;
+      height: 52px;
+      font-family: var(--mono);
+      font-size: 20px;
+      letter-spacing: 3px;
+      padding: 0 16px;
+      border: 1.5px solid var(--border2);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .scan-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(26,74,138,0.08);
+    }
+    .scan-input::placeholder { color: var(--text3); letter-spacing: 1px; font-size: 14px; }
 
-  .result-card.visible { display: block; }
-  .result-card.found { border-color: var(--success); }
-  .result-card.notfound { border-color: var(--error); }
+    /* ── FOUND PANEL ── */
+    .found-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 14px 16px;
+      background: var(--success-bg);
+      border: 1px solid #b2d9c0;
+      border-radius: var(--radius);
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .found-panel.show { display: flex; }
 
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+    .found-info {
+      font-size: 14px;
+      color: var(--success);
+      line-height: 1.5;
+    }
+    .found-info strong { font-weight: 600; }
+    .found-info .price-tag {
+      display: inline-block;
+      background: #fff;
+      border: 1px solid #b2d9c0;
+      border-radius: 6px;
+      padding: 1px 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--success);
+      margin-left: 4px;
+    }
 
-  .result-title {
-    font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 6px;
-    line-height: 1.3;
-  }
+    .found-qty-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .found-qty-row label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+    }
+    .qty-inp {
+      width: 80px;
+      height: 38px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 500;
+      border: 1px solid #b2d9c0;
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      padding: 0 8px;
+    }
+    .qty-inp:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,74,138,0.08); }
 
-  .result-meta {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
+    /* ── MANUAL PANEL ── */
+    .manual-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 16px;
+      background: var(--warn-bg);
+      border: 1px solid #e8c87a;
+      border-radius: var(--radius);
+    }
+    .manual-panel.show { display: block; }
 
-  .result-meta .ean { color: var(--accent); }
+    .mp-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--warn);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-  .qty-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 90px 100px 90px;
+      gap: 10px;
+      align-items: end;
+    }
 
-  .qty-label {
-    font-size: 13px;
-    color: var(--muted);
-    flex: 1;
-  }
+    @media (max-width: 600px) {
+      .fields-grid { grid-template-columns: 1fr 1fr; }
+    }
 
-  .qty-controls {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--warn);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+    }
+    .field input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid #e8c87a;
+      border-radius: var(--radius);
+      padding: 0 10px;
+      font-family: var(--sans);
+      font-size: 13px;
+      background: #fff;
+      color: var(--text);
+    }
+    .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,74,138,0.08); }
 
-  .qty-btn {
-    background: var(--surface);
-    border: none;
-    color: var(--text);
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s;
-  }
+    .manual-actions { display: flex; gap: 8px; margin-top: 12px; }
 
-  .qty-btn:active { background: var(--border); }
+    /* ── STATS ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .stat-label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-val { font-size: 24px; font-weight: 700; color: var(--text); font-family: var(--mono); }
 
-  .qty-val {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 18px;
-    font-weight: 600;
-    width: 50px;
-    text-align: center;
-    color: var(--accent);
-    background: var(--bg);
-    height: 40px;
-    line-height: 40px;
-    border-left: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-  }
+    /* ── TABLE ── */
+    .tbl-card {
+      background: var(--surface);
+      border: 2px solid #b0b0b0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .tbl-wrap { overflow-x: auto; }
 
-  .add-btn {
-    width: 100%;
-    padding: 11px;
-    margin-top: 12px;
-    background: var(--success);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 15px;
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+    }
 
-  .add-btn:active { opacity: 0.7; }
+    thead th {
+      padding: 9px 10px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1a1916;
+      background: #d6e4f7;
+      border: 1px solid #8eaacc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    thead th.num { text-align: center; }
 
-  /* LOADING */
-  .loading {
-    display: none;
-    padding: 16px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 14px;
-  }
+    tbody td {
+      padding: 7px 10px;
+      border: 1px solid #c8c8c8;
+      vertical-align: middle;
+      color: var(--text);
+      background: #fff;
+      overflow: hidden;
+    }
+    tbody tr:nth-child(even) td { background: #f5f8ff; }
+    tbody tr:hover td { background: #eaf2ff; }
+    td.num { text-align: right; }
 
-  .loading.visible { display: block; }
+    .edit-inp {
+      width: 100%;
+      height: 28px;
+      border: 1px solid #aac4e8;
+      border-radius: 3px;
+      padding: 0 6px;
+      font-family: var(--mono);
+      font-size: 13px;
+      text-align: right;
+      background: #fff;
+      color: var(--text);
+    }
+    .edit-inp:focus { outline: none; border-color: var(--accent); background: #eef5ff; }
 
-  /* ITEMS LIST PANEL */
-  .list-panel {
-    flex: 1;
-    overflow-y: auto;
-  }
+    .dist-tab{background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;margin-bottom:-1px;transition:0.15s;font-family:var(--sans)}
+    .dist-tab:hover{color:var(--text)}
+    .dist-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .filter-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 12px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:0.15s;font-family:var(--sans)}
+    .filter-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .filter-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+    .staff-toggle{width:40px;height:22px;border-radius:20px;border:none;cursor:pointer;position:relative;transition:0.2s;flex-shrink:0}
+    .staff-toggle.on{background:var(--success)}
+    .staff-toggle.off{background:var(--border2)}
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text3);
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+    }
+    .del-btn:hover { color: var(--danger); background: var(--danger-bg); }
 
-  .list-header {
-    padding: 10px 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: var(--muted);
-    position: sticky;
-    top: 0;
-  }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text3);
+    }
+    .empty-state svg { margin: 0 auto 12px; display: block; opacity: 0.4; }
+    .empty-state p { font-size: 14px; }
 
-  .total-badge {
-    background: var(--accent);
-    color: #000;
-    font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-  }
+    .tbl-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text2);
+    }
+    .tbl-footer strong {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
 
-  .item-row {
-    display: flex;
-    align-items: center;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    gap: 10px;
-    animation: slideIn 0.15s ease;
-  }
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.show { display: flex; }
 
-  .item-row:active { background: var(--surface); }
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 420px;
+      padding: 2rem;
+      animation: modalIn 0.18s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+      to   { opacity: 1; transform: none; }
+    }
 
-  .item-info { flex: 1; min-width: 0; }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text3);
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+    }
+    .modal-close:hover { color: var(--text); background: var(--surface2); }
 
-  .item-name {
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+    .modal-field {
+      margin-bottom: 14px;
+    }
+    .modal-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .modal-field input {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 0 12px;
+      font-family: var(--sans);
+      font-size: 14px;
+      background: var(--surface2);
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .modal-field input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(26,74,138,0.08);
+    }
 
-  .item-ean {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 2px;
-  }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 1.5rem;
+    }
+    .modal-actions .btn { flex: 1; justify-content: center; height: 42px; font-size: 14px; }
 
-  .item-qty-controls {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
+    .modal-divider {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text3);
+      margin: 1rem 0 0;
+    }
+    .modal-divider a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .modal-divider a:hover { text-decoration: underline; }
 
-  .iq-btn {
-    background: var(--surface);
-    border: none;
-    color: var(--text);
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    .modal-msg {
+      font-size: 13px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      margin-top: 10px;
+      display: none;
+    }
+    .modal-msg.ok   { background: var(--success-bg); color: var(--success); display: block; }
+    .modal-msg.err  { background: var(--danger-bg);  color: var(--danger);  display: block; }
 
-  .iq-btn:active { background: var(--border); }
-
-  .iq-val {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 15px;
-    font-weight: 600;
-    width: 42px;
-    text-align: center;
-    color: var(--accent);
-    background: var(--bg);
-    height: 32px;
-    line-height: 32px;
-    border-left: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-  }
-
-  .del-btn {
-    background: none;
-    border: none;
-    color: var(--error);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 4px 6px;
-    flex-shrink: 0;
-  }
-
-  .empty-state {
-    padding: 60px 20px;
-    text-align: center;
-    color: var(--muted);
-  }
-
-  .empty-state .icon {
-    font-size: 48px;
-    margin-bottom: 12px;
-    display: block;
-  }
-
-  .empty-state p {
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  /* EXPORT PANEL */
-  .export-panel {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .export-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px;
-    letter-spacing: 1px;
-    color: var(--accent);
-    margin-bottom: 4px;
-  }
-
-  .summary-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-  }
-
-  .summary-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    font-size: 13px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .summary-row:last-child { border-bottom: none; }
-  .summary-row .val {
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 600;
-    color: var(--accent);
-  }
-
-  .preview-box {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    max-height: 160px;
-    overflow-y: auto;
-    white-space: pre;
-    line-height: 1.6;
-  }
-
-  textarea.export-area {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    padding: 12px;
-    resize: vertical;
-    min-height: 140px;
-    width: 100%;
-    outline: none;
-  }
-
-  .btn-row {
-    display: flex;
-    gap: 8px;
-  }
-
-  .btn-row .btn { flex: 1; }
-
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--success);
-    color: #fff;
-    font-weight: 600;
-    font-size: 14px;
-    padding: 10px 20px;
-    border-radius: 24px;
-    z-index: 999;
-    transition: transform 0.3s ease;
-    white-space: nowrap;
-  }
-
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.error { background: var(--error); }
-</style>
+    /* ── CSV hint ── */
+    .csv-hint {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 8px;
+    }
+    .csv-hint code {
+      font-family: var(--mono);
+      background: var(--surface2);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+  </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">ScanCount</div>
-  <div class="session-info">
-    Позицій: <span id="hdrPositions">0</span><br>
-    Всього: <span id="hdrTotal">0</span> шт
-  </div>
-</header>
+<!-- ПОРОЖНІЙ ХЕДЕР -->
+<header></header>
 
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('scan')">📷 Скан</div>
-  <div class="tab" onclick="switchTab('list')">📋 Список</div>
-  <div class="tab" onclick="switchTab('export')">📤 Експорт</div>
-</div>
+<main>
 
-<!-- SCAN PANEL -->
-<div class="panel active" id="panelScan">
-  <div class="scan-area">
-    <div class="input-row">
-      <input type="text" class="barcode-input" id="barcodeInput"
-        placeholder="Штрих-код..."
-        inputmode="numeric"
-        autocomplete="off"
-        autofocus
-        onkeydown="if(event.key==='Enter') lookupBarcode()">
-      <button class="btn" onclick="lookupBarcode()">→</button>
-    </div>
+  <!-- ПАНЕЛЬ ДИСТРИБ'ЮТОРА (показується після входу як дистриб'ютор) -->
+  <div id="distPanel" style="display:none">
 
-    <div class="loading" id="loading">Шукаю...</div>
-
-    <div class="result-card" id="resultCard">
-      <div class="result-title" id="resultTitle"></div>
-      <div class="result-meta">
-        <span class="ean" id="resultEAN"></span>
-        <span id="resultUnit"></span>
-      </div>
-      <div class="qty-row">
-        <span class="qty-label">Кількість:</span>
-        <div class="qty-controls">
-          <button class="qty-btn" onclick="changeQty(-1)">−</button>
-          <div class="qty-val" id="qtyVal">1</div>
-          <button class="qty-btn" onclick="changeQty(1)">+</button>
+    <!-- Заголовок -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">
+          🏭 <span id="distPanelName">Дистриб'ютор</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">
+          Код для магазинів: <span id="distPanelCode" style="font-family:var(--mono);color:var(--accent);font-weight:700;letter-spacing:2px"></span>
+          &nbsp;·&nbsp; <span id="distTrialInfo" style="color:var(--warn);font-weight:600"></span>
         </div>
       </div>
-      <button class="add-btn" onclick="addToList()">✓ Додати до списку</button>
+      <button onclick="logout()" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;background:var(--danger-bg);border:1px solid var(--danger);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--danger);cursor:pointer">
+        Вийти
+      </button>
     </div>
-  </div>
-</div>
 
-<!-- LIST PANEL -->
-<div class="panel" id="panelList">
-  <div class="list-header">
-    <span id="listCount">0 позицій</span>
-    <span class="total-badge" id="listTotal">0 шт</span>
-  </div>
-  <div class="list-panel" id="listItems">
-    <div class="empty-state">
-      <span class="icon">📦</span>
-      <p>Список порожній.<br>Скануйте товари у вкладці «Скан»</p>
+    <!-- Вкладки -->
+    <div style="display:flex;gap:4px;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="dist-tab active" id="tabStaff" onclick="showDistTab('staff')">👥 Співробітники</button>
+      <button class="dist-tab" id="tabInvoices" onclick="showDistTab('invoices')">📋 Накладні <span id="tabInvBadge" style="background:var(--danger);color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:20px;margin-left:4px"></span></button>
+      <button class="dist-tab" id="tabQueue" onclick="showDistTab('queue')">⚡ Черга</button>
+      <button class="dist-tab" id="tabShops" onclick="showDistTab('shops')">🏪 Магазини</button>
     </div>
-  </div>
-</div>
 
-<!-- EXPORT PANEL -->
-<div class="panel" id="panelExport">
-  <div class="export-panel">
-    <div class="export-title">Підсумок сесії</div>
-
-    <div class="summary-box">
-      <div class="summary-row">
-        <span>Позицій</span>
-        <span class="val" id="expPositions">0</span>
+    <!-- Вкладка: Співробітники -->
+    <div id="distTabStaff">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button onclick="openAddStaff()" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer">
+          + Додати співробітника
+        </button>
       </div>
-      <div class="summary-row">
-        <span>Всього одиниць</span>
-        <span class="val" id="expTotal">0</span>
-      </div>
-      <div class="summary-row">
-        <span>Дата</span>
-        <span class="val" id="expDate">—</span>
+      <div class="tbl-card">
+        <div class="tbl-wrap">
+          <table>
+            <colgroup><col style="width:auto"><col style="width:180px"><col style="width:80px"><col style="width:90px"><col style="width:80px"></colgroup>
+            <thead>
+              <tr>
+                <th>Ім'я</th>
+                <th>Email</th>
+                <th>Роль</th>
+                <th style="text-align:center">Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="staffTable"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <div class="preview-box" id="csvPreview">Список порожній</div>
-
-    <textarea class="export-area" id="exportArea" placeholder="CSV тут..."></textarea>
-
-    <div class="btn-row">
-      <button class="btn btn-secondary" onclick="generateCSV()">Оновити CSV</button>
-      <button class="btn" onclick="copyCSV()">Копіювати</button>
+    <!-- Вкладка: Накладні -->
+    <div id="distTabInvoices" style="display:none">
+      <div class="tbl-card">
+        <div class="tbl-header">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="filter-btn active" onclick="filterDistInv('all',this)">Всі</button>
+            <button class="filter-btn" onclick="filterDistInv('pending',this)">⏳ Очікують</button>
+            <button class="filter-btn" onclick="filterDistInv('confirmed',this)">✅ Підтверджені</button>
+            <button class="filter-btn" onclick="filterDistInv('rejected',this)">❌ Відхилені</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <colgroup><col style="width:110px"><col style="width:auto"><col style="width:80px"><col style="width:90px"><col style="width:70px"><col style="width:90px"><col style="width:100px"><col style="width:80px"></colgroup>
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Магазин</th>
+                <th>Тип</th>
+                <th>Сума, грн</th>
+                <th>Геолок.</th>
+                <th>Час</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="distInvTable"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <button class="btn btn-danger" onclick="clearAll()" style="margin-top:4px">🗑 Очистити список</button>
+    <!-- Вкладка: Черга -->
+    <div id="distTabQueue" style="display:none">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
+        <button onclick="redistributeDistQueue()" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer">
+          ↺ Перерозподілити
+        </button>
+      </div>
+      <div id="distQueueCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px"></div>
+    </div>
+
+    <!-- Вкладка: Магазини -->
+    <div id="distTabShops" style="display:none">
+      <div class="tbl-card">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Назва магазину</th>
+                <th>Телефон</th>
+                <th>Накладних</th>
+                <th>Остання активність</th>
+                <th style="text-align:center">Статус</th>
+              </tr>
+            </thead>
+            <tbody id="distShopsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
-</div>
 
-<div class="toast" id="toast"></div>
+  <!-- ОСНОВНИЙ КОНТЕНТ (переоблік) -->
+  <div id="mainContent">
+
+  <div class="page-title" style="display:flex;align-items:center;gap:10px">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)">
+      <rect x="9" y="2" width="6" height="4" rx="1"/><path d="M4 6h16v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M8 11h8M8 15h5"/>
+    </svg>
+    Переоблік товарів
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="btn-group">
+      <label class="btn" style="cursor:pointer" onclick="event.preventDefault();exportCSV()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Зберегти переоблік в CSV
+        <input type="file" id="csvFile" accept=".csv" style="display:none">
+      </label>
+    </div>
+    <div class="btn-group">
+      <button class="btn primary" onclick="openModal('register')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        Реєстрація
+      </button>
+      <button class="btn" onclick="openModal('login')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Увійти
+      </button>
+      <button onclick="window.open('auth.html','_blank')" style="display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;background:#0f2d5a;color:#7eaadf;border:1px solid #1a4a8a;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)">
+        🔧 Інструмент для дистриб'ютора
+      </button>
+      <button onclick="testLoginDist()" style="display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;background:#2d1a00;color:#f59e0b;border:1px solid #f59e0b;border-radius:var(--radius);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)">
+        🧪 Тест-вхід
+      </button>
+    </div>
+  </div>
+
+  <!-- SCAN CARD -->
+  <div class="scan-card">
+    <div class="field-label" style="margin-bottom:8px">Сканування штрихкоду</div>
+    <div class="scan-row">
+      <input class="scan-input" id="barcodeInput" type="text"
+        placeholder="Відскануйте або введіть штрихкод..."
+        autocomplete="off" inputmode="numeric">
+      <button id="okBtn" style="height:52px;padding:0 20px;font-size:16px;font-weight:700;background:#1a4a8a;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;flex-shrink:0">OK</button>
+    </div>
+    <div class="csv-hint">
+      Формат CSV бази: <code>штрихкод;назва;одиниця;ціна</code> — наприклад: <code>4820001234567;Молоко 1л;шт;45.90</code>
+    </div>
+
+    <!-- ЗНАЙДЕНО В БАЗІ -->
+    <div class="found-panel" id="foundPanel">
+      <div class="found-info" id="foundInfo"></div>
+      <div class="found-qty-row">
+        <label>Кількість:</label>
+        <input class="qty-inp" id="foundQty" type="number" min="0.001" step="any" placeholder="0">
+        <button class="btn primary" onclick="addFound()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Додати
+        </button>
+      </div>
+    </div>
+
+    <!-- НЕ ЗНАЙДЕНО — РУЧНИЙ ВВІД -->
+    <div class="manual-panel" id="manualPanel">
+      <div class="mp-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Товар не знайдено в базі — введіть вручну
+      </div>
+      <div class="fields-grid">
+        <div class="field">
+          <label>Найменування товару</label>
+          <input id="mName" type="text" placeholder="Назва товару">
+        </div>
+        <div class="field">
+          <label>Од. вим.</label>
+          <select id="mUnit" style="width:100%;height:38px;border:1px solid #e8c87a;border-radius:var(--radius);padding:0 8px;font-family:var(--sans);font-size:13px;background:#fff;color:var(--text);cursor:pointer">
+            <option>шт</option><option>кг</option><option>г</option><option>л</option>
+            <option>мл</option><option>м</option><option>см</option><option>уп</option>
+            <option>пар</option><option>компл</option><option>box</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Ціна, грн</label>
+          <input id="mPrice" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label>Кількість</label>
+          <input id="mQty" type="number" step="any" placeholder="0">
+        </div>
+      </div>
+      <div class="manual-actions">
+        <button class="btn primary" onclick="addManual()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Додати
+        </button>
+        <button class="btn" onclick="cancelManual()">Скасувати</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ІДЕНТИФІКАТОР ДОКУМЕНТУ -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap">
+    <div id="docLabel" style="flex:1;text-align:center;padding:14px 20px;border-radius:var(--radius-lg);background:#e8eef7;border:2px solid #1a4a8a;font-size:20px;font-weight:700;color:#1a4a8a;letter-spacing:0.5px">
+      📋 Переоблік
+    </div>
+    <button onclick="saveAndQR()" style="height:56px;padding:0 20px;font-size:14px;font-weight:700;background:#1a4a8a;color:#fff;border:none;border-radius:var(--radius-lg);cursor:pointer;display:flex;align-items:center;gap:8px;flex-shrink:0" id="saveBtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span id="saveBtnLabel">Зберегти</span>
+    </button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="tbl-card">
+    <div class="tbl-wrap">
+      <table>
+        <colgroup>
+          <col style="width:40px">
+          <col style="width:120px">
+          <col style="width:auto">
+          <col style="width:90px">
+          <col style="width:80px">
+          <col style="width:90px">
+          <col style="width:90px">
+          <col style="width:34px">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Штрихкод</th>
+            <th>Найменування товару</th>
+            <th>Од. вим.</th>
+            <th class="num">К-сть</th>
+            <th class="num">Ціна, грн</th>
+            <th class="num">Сума, грн</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="4" height="4"/><rect x="10" y="4" width="4" height="4"/><rect x="16" y="4" width="4" height="4"/>
+                  <rect x="4" y="10" width="4" height="4"/><rect x="16" y="10" width="4" height="4"/>
+                  <rect x="4" y="16" width="4" height="4"/><rect x="10" y="16" width="4" height="4"/><rect x="16" y="16" width="4" height="4"/>
+                </svg>
+                <p>Відскануйте перший товар або завантажте базу CSV</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tbl-footer" id="tblFooter" style="display:none">
+      Загальна сума: <strong id="footerSum">0.00</strong> грн
+    </div>
+  </div>
+
+  <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap">
+    <button id="btnRecount" onclick="switchMode('recount')"
+      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#e8eef7;border:2px solid #1a4a8a;color:#1a4a8a;border-radius:var(--radius);cursor:pointer">
+      📋 Переоблік
+    </button>
+    <button id="btnReturn" onclick="switchMode('return')"
+      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#fff9e6;border:2px solid #e6c200;color:#5a4200;border-radius:var(--radius);cursor:pointer">
+      ↩ Накладна на повернення
+    </button>
+    <button id="btnCorrective" onclick="switchMode('corrective')"
+      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#eafaea;border:2px solid #7ec87e;color:#1a5c1a;border-radius:var(--radius);cursor:pointer">
+      ✏️ Коригуюча накладна
+    </button>
+  </div>
+
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="openModal('shop')"
+      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#fff3e8;border:2px solid #e87a1a;color:#7a3500;border-radius:var(--radius);cursor:pointer">
+      🛒 Стати інтернет-магазином
+    </button>
+    <button onclick="openModal('courier')"
+      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#f0eafa;border:2px solid #7c3aed;color:#4a1a8a;border-radius:var(--radius);cursor:pointer">
+      🚴 Стати кур'єром
+    </button>
+  </div>
+  </div><!-- /mainContent -->
+</main>
+
+<!-- MODAL OVERLAY -->
+<div class="modal-overlay" id="modalOverlay" onclick="overlayClick(event)">
+
+  <!-- РЕЄСТРАЦІЯ -->
+  <div class="modal" id="modalRegister" style="max-width:460px">
+    <div class="modal-header">
+      <span class="modal-title">Реєстрація</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Вибір типу -->
+    <div id="regTypeSelect">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Оберіть тип акаунту:</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem">
+        <div id="regTypeShop" onclick="selectRegType('shop')" style="border:2px solid var(--border2);border-radius:var(--radius);padding:16px 12px;text-align:center;cursor:pointer;transition:all 0.15s">
+          <div style="font-size:26px;margin-bottom:6px">🏪</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Магазин</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.4">Переоблік + накладні якщо є код дистриб'ютора</div>
+        </div>
+        <div id="regTypeDist" onclick="selectRegType('distributor')" style="border:2px solid var(--border2);border-radius:var(--radius);padding:16px 12px;text-align:center;cursor:pointer;transition:all 0.15s">
+          <div style="font-size:26px;margin-bottom:6px">🏭</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Дистриб'ютор</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.4">Кабінет, черга товарознавців, управління магазинами</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Форма магазину -->
+    <div id="regFormShop" style="display:none">
+      <div style="background:var(--success-bg);border:1px solid #b2d9c0;border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--success)">
+        🏪 Реєстрація магазину — переоблік безкоштовно назавжди
+      </div>
+      <div class="modal-field">
+        <label>Телефон <span style="color:var(--danger)">*</span></label>
+        <input id="rShopPhone" type="tel" placeholder="+380 XX XXX XX XX" style="font-size:16px;font-weight:600">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">📌 Буде вашим підписом на всіх документах</div>
+      </div>
+      <div class="modal-field">
+        <label>Email <span style="color:var(--danger)">*</span></label>
+        <input id="rShopEmail" type="email" placeholder="example@mail.com">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">🔑 Для входу через Magic Link</div>
+      </div>
+      <div class="modal-field">
+        <label>Назва магазину <span style="color:var(--danger)">*</span></label>
+        <input id="rShopName" type="text" placeholder="Продукти Петренка">
+      </div>
+      <div class="modal-field">
+        <label>Ім'я власника</label>
+        <input id="rShopOwner" type="text" placeholder="Ваше ім'я">
+      </div>
+      <div class="modal-field">
+        <label>Код дистриб'ютора <span style="color:var(--text3);font-weight:400">(необов'язково)</span></label>
+        <input id="rShopCode" type="text" placeholder="DIST-XXXX — якщо є" style="font-family:var(--mono);letter-spacing:2px;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Без коду доступний тільки переоблік</div>
+      </div>
+      <div class="modal-msg" id="rShopMsg"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="selectRegType(null)">← Назад</button>
+        <button class="btn primary" onclick="submitRegShop()">Зареєструватись</button>
+      </div>
+    </div>
+
+    <!-- Форма дистриб'ютора -->
+    <div id="regFormDist" style="display:none">
+      <div style="background:var(--accent-bg);border:1px solid #b2c8e8;border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--accent-text)">
+        🏭 <strong>14 днів безкоштовно</strong> — потім 1500 грн/міс + 100 грн за кожен магазин. Картка не потрібна.
+      </div>
+      <div class="modal-field">
+        <label>Телефон <span style="color:var(--danger)">*</span></label>
+        <input id="rDistPhone" type="tel" placeholder="+380 XX XXX XX XX" style="font-size:16px;font-weight:600">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">📌 Основний ідентифікатор в системі</div>
+      </div>
+      <div class="modal-field">
+        <label>Email <span style="color:var(--danger)">*</span></label>
+        <input id="rDistEmail" type="email" placeholder="example@company.ua">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">🔑 Для входу через Magic Link</div>
+      </div>
+      <div class="modal-field">
+        <label>Назва компанії <span style="color:var(--danger)">*</span></label>
+        <input id="rDistName" type="text" placeholder="ТОВ Дистриб'ютор Плюс">
+      </div>
+      <div class="modal-field">
+        <label>Контактна особа</label>
+        <input id="rDistContact" type="text" placeholder="Ваше ім'я та прізвище">
+      </div>
+      <div class="modal-msg" id="rDistMsg"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="selectRegType(null)">← Назад</button>
+        <button class="btn primary" onclick="submitRegDist()">Зареєструватись</button>
+      </div>
+    </div>
+
+    <div class="modal-divider">Вже є акаунт? <a onclick="openModal('login')">Увійти</a></div>
+  </div>
+
+  <!-- ВХІД -->
+  <div class="modal" id="modalLogin" style="display:none">
+    <div class="modal-header">
+      <span class="modal-title">Вхід</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-field">
+      <label>Email</label>
+      <input id="lEmail" type="email" placeholder="example@mail.com" autocomplete="email">
+    </div>
+    <div class="modal-field">
+      <label>Пароль</label>
+      <input id="lPass" type="password" placeholder="Ваш пароль" autocomplete="current-password">
+    </div>
+    <div class="modal-msg" id="lMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Скасувати</button>
+      <button class="btn primary" onclick="submitLogin()">Увійти</button>
+    </div>
+    <div class="modal-divider">Немає акаунту? <a onclick="openModal('register')">Зареєструватись</a></div>
+  </div>
+
+  <!-- ІНТЕРНЕТ-МАГАЗИН -->
+  <div class="modal" id="modalShop" style="display:none">
+    <div class="modal-header">
+      <span class="modal-title">🛒 Стати інтернет-магазином</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="background:#fff3e8;border:1.5px solid #e87a1a;border-radius:var(--radius);padding:14px;margin-bottom:1rem;font-size:13px;color:#7a3500;line-height:1.7">
+      ✅ QR-код на вході — клієнт сканує і обирає товари<br>
+      ✅ Оплата на касі або карткою<br>
+      ✅ Доставка додому, на парковку або самовивіз<br>
+      ✅ Кур'єри вже в системі<br>
+      💰 <strong>1000 грн/міс</strong> — без комісії з продажів
+    </div>
+    <div class="modal-field">
+      <label>Назва магазину</label>
+      <input id="shopName" type="text" placeholder="Магазин Петренка">
+    </div>
+    <div class="modal-field">
+      <label>Телефон</label>
+      <input id="shopPhone" type="tel" placeholder="+380 XX XXX XX XX">
+    </div>
+    <div class="modal-field">
+      <label>Місто</label>
+      <input id="shopCity" type="text" placeholder="Київ">
+    </div>
+    <div class="modal-msg" id="shopMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Закрити</button>
+      <button class="btn primary" onclick="submitShop()" style="background:#e87a1a;border-color:#e87a1a">Залишити заявку</button>
+    </div>
+  </div>
+
+  <!-- КУР'ЄР -->
+  <div class="modal" id="modalCourier" style="display:none">
+    <div class="modal-header">
+      <span class="modal-title">🚴 Стати кур'єром</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="background:#f0eafa;border:1.5px solid #7c3aed;border-radius:var(--radius);padding:14px;margin-bottom:1rem;font-size:13px;color:#4a1a8a;line-height:1.7">
+      ✅ Працюєш де хочеш і коли хочеш<br>
+      ✅ Замовлення в радіусі на карті<br>
+      ✅ Вантажівка? Будівельний маркет — твоє поле<br>
+      ✅ Залог = твій ліміт на товар<br>
+      💰 <strong>1000 грн/міс</strong> — всі чайові твої
+    </div>
+    <div class="modal-field">
+      <label>Ім'я</label>
+      <input id="courierName" type="text" placeholder="Ваше ім'я">
+    </div>
+    <div class="modal-field">
+      <label>Телефон</label>
+      <input id="courierPhone" type="tel" placeholder="+380 XX XXX XX XX">
+    </div>
+    <div class="modal-field">
+      <label>Тип транспорту</label>
+      <select id="courierVehicle" style="width:100%;height:42px;border:1px solid var(--border2);border-radius:var(--radius);padding:0 12px;font-size:14px;background:var(--surface2);color:var(--text)">
+        <option>🚶 Пішки (до 20 кг)</option>
+        <option>🚴 Велосипед (до 30 кг)</option>
+        <option>🛵 Мотоцикл (до 50 кг)</option>
+        <option>🚗 Легковик (до 200 кг)</option>
+        <option>🚐 Мінівен (до 500 кг)</option>
+        <option>🚛 Вантажівка (до 5000 кг)</option>
+      </select>
+    </div>
+    <div class="modal-msg" id="courierMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Закрити</button>
+      <button class="btn primary" onclick="submitCourier()" style="background:#7c3aed;border-color:#7c3aed">Залишити заявку</button>
+    </div>
+  </div>
+  <!-- ДОДАТИ СПІВРОБІТНИКА -->
+  <div class="modal" id="modalAddStaff" style="display:none">
+    <div class="modal-header">
+      <span class="modal-title">+ Додати співробітника</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-field">
+      <label>Ім'я та прізвище</label>
+      <input id="staffName" type="text" placeholder="Іваненко Олег">
+    </div>
+    <div class="modal-field">
+      <label>Email</label>
+      <input id="staffEmail" type="email" placeholder="ivanen@company.ua">
+    </div>
+    <div class="modal-field">
+      <label>Роль</label>
+      <select id="staffRole" style="width:100%;height:42px;border:1px solid var(--border2);border-radius:var(--radius);padding:0 12px;font-size:14px;background:var(--surface2);color:var(--text)">
+        <option value="merchandise">📋 Товарознавець</option>
+        <option value="expeditor">🚗 Експедитор</option>
+      </select>
+    </div>
+    <div class="modal-msg" id="staffMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Скасувати</button>
+      <button class="btn primary" onclick="addStaff()">Додати</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modalQR" style="display:none;max-width:340px">
+    <div class="modal-header">
+      <span class="modal-title" id="qrModalTitle">QR-код накладної</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="qrBanner" style="margin:-0.5rem -2rem 1.2rem;padding:14px;text-align:center;font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:1px"></div>
+    <div style="text-align:center;margin-bottom:1rem">
+      <img id="qrImage" src="" width="200" height="200" alt="QR" style="border:4px solid #e2ddd8;border-radius:10px">
+    </div>
+    <div id="qrInvNum" style="text-align:center;font-family:var(--mono);font-size:13px;color:var(--text2);margin-bottom:6px;letter-spacing:2px"></div>
+    <div id="qrDate" style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:1rem"></div>
+    <div id="qrTotal" style="text-align:center;font-size:18px;font-weight:700;color:var(--text);margin-bottom:1.2rem"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Закрити</button>
+      <button class="btn primary" id="qrOpenDoc" onclick="">Відкрити документ</button>
+    </div>
+  </div>
+
+  <!-- ДОСТУП ДИСТРИБ'ЮТОРА -->
+  <div class="modal" id="modalDistAccess" style="display:none">
+    <div class="modal-header">
+      <span class="modal-title">🔒 Функція недоступна</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="text-align:center;padding:1rem 0">
+      <div style="font-size:48px;margin-bottom:12px">🏭</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">Накладні доступні тільки при підключенні до дистриб'ютора</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:1.25rem">
+        Попросіть свого дистриб'ютора зареєструватись в ScanCount і отримайте від нього код підключення.<br><br>
+        Або зареєструйтесь як дистриб'ютор самостійно.
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:12px;margin-bottom:1rem;font-size:13px;color:var(--text2)">
+        Вже маєте код? Введіть його в налаштуваннях профілю.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Закрити</button>
+      <button class="btn primary" onclick="closeModal();openModal('register')">Зареєструватись</button>
+    </div>
+  </div>
+  <div class="modal" id="modalCorrective" style="display:none">
+    <div class="modal-header">
+      <span class="modal-title">✏️ Коригуюча накладна</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-field">
+      <label>Код накладної (8 знаків)</label>
+      <input id="corrCode" type="text" maxlength="8" placeholder="XXXXXXXX"
+        style="font-family:var(--mono);font-size:22px;letter-spacing:6px;text-align:center;text-transform:uppercase;height:52px"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+    </div>
+
+    <div style="text-align:center;color:var(--text3);font-size:13px;margin:12px 0;font-weight:500">— або —</div>
+
+    <div class="modal-field">
+      <label>Завантажити накладну (HTML файл)</label>
+      <label style="display:flex;align-items:center;gap:10px;padding:14px;border:1.5px dashed var(--border2);border-radius:var(--radius);cursor:pointer;background:var(--surface2)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span id="corrFileName" style="font-size:13px;color:var(--text2)">Виберіть файл накладної...</span>
+        <input type="file" id="corrFile" accept=".html" style="display:none" onchange="loadCorrectiveFile(this)">
+      </label>
+    </div>
+
+    <div class="modal-msg" id="corrMsg"></div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Скасувати</button>
+      <button class="btn primary" onclick="applyCorrection()" style="background:#1a5c1a;border-color:#1a5c1a">Відкрити для корекції</button>
+    </div>
+  </div>
+
+</div>
 
 <script>
-const WORKER_URL = 'https://scancount-barcode.scancount-service.workers.dev';
+  let db = {};
+  let scanned = [];
+  let pendingBarcode = '';
 
-let items = JSON.parse(localStorage.getItem('scancount_items') || '[]');
-let currentProduct = null;
-let currentQty = 1;
+  const barcodeInput = document.getElementById('barcodeInput');
+  const foundPanel   = document.getElementById('foundPanel');
+  const manualPanel  = document.getElementById('manualPanel');
 
-function saveItems() {
-  localStorage.setItem('scancount_items', JSON.stringify(items));
-  updateHeader();
-}
+  barcodeInput.addEventListener('keydown', e => { if(e.key === 'Enter') processBarcode(); });
+  document.getElementById('okBtn').addEventListener('click', () => processBarcode());
+  document.getElementById('foundQty').addEventListener('keydown', e => { if(e.key === 'Enter') addFound(); });
+  document.getElementById('mName').addEventListener('keydown', e => { if(e.key === 'Enter') document.getElementById('mUnit').focus(); });
+  document.getElementById('mQty').addEventListener('keydown', e => { if(e.key === 'Enter') addManual(); });
 
-function updateHeader() {
-  const positions = items.length;
-  const total = items.reduce((s, i) => s + i.qty, 0);
-  document.getElementById('hdrPositions').textContent = positions;
-  document.getElementById('hdrTotal').textContent = total;
-}
-
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['scan','list','export'][i] === tab);
+  document.getElementById('csvFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => parseCSV(ev.target.result);
+    reader.readAsText(file, 'UTF-8');
+    this.value = '';
   });
-  document.querySelectorAll('.panel').forEach((p, i) => {
-    p.classList.toggle('active', ['panelScan','panelList','panelExport'][i] === 'panel' + tab.charAt(0).toUpperCase() + tab.slice(1));
-  });
-  if (tab === 'list') renderList();
-  if (tab === 'export') renderExport();
-}
 
-async function lookupBarcode() {
-  const input = document.getElementById('barcodeInput');
-  const ean = input.value.trim().replace(/\D/g, '');
-  if (!ean) return;
-
-  showResult(false);
-  document.getElementById('loading').classList.add('visible');
-
-  try {
-    const res = await fetch(`${WORKER_URL}/${ean}`);
-    const data = await res.json();
-    document.getElementById('loading').classList.remove('visible');
-
-    if (data.found) {
-      currentProduct = { ean, title: data.title, unit: data.unit };
-      currentQty = 1;
-      document.getElementById('qtyVal').textContent = '1';
-      document.getElementById('resultTitle').textContent = data.title;
-      document.getElementById('resultEAN').textContent = ean;
-      document.getElementById('resultUnit').textContent = data.unit || '';
-      const card = document.getElementById('resultCard');
-      card.className = 'result-card visible found';
-    } else {
-      currentProduct = { ean, title: 'Невідомий товар', unit: 'шт' };
-      currentQty = 1;
-      document.getElementById('qtyVal').textContent = '1';
-      document.getElementById('resultTitle').textContent = '⚠ Не знайдено в базі';
-      document.getElementById('resultEAN').textContent = ean;
-      document.getElementById('resultUnit').textContent = '';
-      const card = document.getElementById('resultCard');
-      card.className = 'result-card visible notfound';
+  function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    db = {};
+    let count = 0;
+    for(let i = 0; i < lines.length; i++) {
+      const cols = lines[i].split(/[,;]/);
+      if(cols.length < 2) continue;
+      const bc = cols[0].trim();
+      if(!bc || /^(штрих|barcode)/i.test(bc)) continue;
+      db[bc] = {
+        name:  (cols[1]||'').trim() || '—',
+        unit:  (cols[2]||'шт').trim() || 'шт',
+        price: parseFloat((cols[3]||'0').replace(',','.')) || 0
+      };
+      count++;
     }
-  } catch (e) {
-    document.getElementById('loading').classList.remove('visible');
-    toast('Помилка зв\'язку з сервером', true);
-  }
-}
-
-function showResult(visible) {
-  const card = document.getElementById('resultCard');
-  if (!visible) card.className = 'result-card';
-}
-
-function changeQty(delta) {
-  currentQty = Math.max(1, currentQty + delta);
-  document.getElementById('qtyVal').textContent = currentQty;
-}
-
-function addToList() {
-  if (!currentProduct) return;
-  const existing = items.find(i => i.ean === currentProduct.ean);
-  if (existing) {
-    existing.qty += currentQty;
-    toast(`+${currentQty} до "${existing.title.slice(0,20)}..."`);
-  } else {
-    items.unshift({ ...currentProduct, qty: currentQty });
-    toast(`Додано: ${currentProduct.title.slice(0, 28)}...`);
-  }
-  saveItems();
-  showResult(false);
-  document.getElementById('barcodeInput').value = '';
-  document.getElementById('barcodeInput').focus();
-}
-
-function renderList() {
-  const container = document.getElementById('listItems');
-  document.getElementById('listCount').textContent = items.length + ' позицій';
-  const total = items.reduce((s, i) => s + i.qty, 0);
-  document.getElementById('listTotal').textContent = total + ' шт';
-
-  if (items.length === 0) {
-    container.innerHTML = `<div class="empty-state"><span class="icon">📦</span><p>Список порожній.<br>Скануйте товари у вкладці «Скан»</p></div>`;
-    return;
+    alert(`✓ Завантажено ${count} товарів у базу`);
+    updateStats();
   }
 
-  container.innerHTML = items.map((item, idx) => `
-    <div class="item-row">
-      <div class="item-info">
-        <div class="item-name">${item.title}</div>
-        <div class="item-ean">${item.ean} · ${item.unit || 'шт'}</div>
-      </div>
-      <div class="item-qty-controls">
-        <button class="iq-btn" onclick="adjustItem(${idx}, -1)">−</button>
-        <div class="iq-val">${item.qty}</div>
-        <button class="iq-btn" onclick="adjustItem(${idx}, 1)">+</button>
-      </div>
-      <button class="del-btn" onclick="deleteItem(${idx})">✕</button>
-    </div>
-  `).join('');
-}
+  async function processBarcode() {
+    const bc = barcodeInput.value.trim();
+    if(!bc) return;
+    pendingBarcode = bc;
+    foundPanel.classList.remove('show');
+    manualPanel.classList.remove('show');
 
-function adjustItem(idx, delta) {
-  items[idx].qty = Math.max(1, items[idx].qty + delta);
-  saveItems();
-  renderList();
-}
+    // Show loading
+    console.log('processBarcode called for:', bc);
+    const okBtn = document.getElementById('okBtn');
+    if(okBtn) { okBtn.textContent = '…'; okBtn.disabled = true; }
 
-function deleteItem(idx) {
-  items.splice(idx, 1);
-  saveItems();
-  renderList();
-}
+    // 1. Check local CSV db first
+    let item = db[bc] ? { ...db[bc], fromLocal: true } : null;
 
-function renderExport() {
-  document.getElementById('expPositions').textContent = items.length;
-  document.getElementById('expTotal').textContent = items.reduce((s, i) => s + i.qty, 0);
-  document.getElementById('expDate').textContent = new Date().toLocaleDateString('uk-UA');
-  generateCSV();
-}
+    // 1.5 Check locally learned DB
+    if(!item) {
+      try {
+        const learned = JSON.parse(localStorage.getItem('scancount_learned') || '{}');
+        if(learned[bc]) {
+          item = { name: learned[bc].title, unit: learned[bc].unit || 'шт', price: 0, fromLocal: true };
+          db[bc] = item;
+        }
+      } catch(e) {}
+    }
 
-function generateCSV() {
-  if (items.length === 0) {
-    document.getElementById('csvPreview').textContent = 'Список порожній';
-    document.getElementById('exportArea').value = '';
-    return;
+    // 2. Check Cloudflare Worker
+    if(!item && typeof window.firebaseLookupEAN === 'function') {
+      try {
+        const fbData = await window.firebaseLookupEAN(bc);
+        if(fbData && fbData.title) {
+          item = { name: fbData.title, unit: fbData.unit || 'шт', price: 0, fromFirebase: true };
+          db[bc] = item;
+        }
+      } catch(e) { console.log('Firebase lookup failed:', e); }
+    }
+
+    // 3. Open Food Facts + UPC ItemDB (завжди доступно)
+    if(!item) {
+      try {
+        const r = await fetch(
+          'https://world.openfoodfacts.org/api/v2/product/' + bc + '.json?fields=product_name_uk,product_name_ru,product_name,quantity',
+          { signal: AbortSignal.timeout(8000) }
+        );
+        const d = await r.json();
+        console.log('OFF response status:', d.status, 'product:', d.product?.product_name);
+        if(d.status === 1 && d.product) {
+          const p = d.product;
+          const name = p.product_name_uk || p.product_name_ru || p.product_name || '';
+          if(name && name.length > 2) {
+            const qty = p.quantity || '';
+            const title = name + (qty ? ' ' + qty : '');
+            let unit = 'шт';
+            if(/кг|kg/i.test(qty+name)) unit = 'кг';
+            else if(/мл|ml/i.test(qty+name)) unit = 'мл';
+            else if(/[0-9]\s*л|[0-9]\s*l/i.test(qty+name)) unit = 'л';
+            else if(/[0-9]\s*г|[0-9]\s*g/i.test(qty+name)) unit = 'г';
+            item = { name: title, unit, price: 0, fromListex: true };
+            db[bc] = item;
+            if(typeof window.firebaseSaveProduct === 'function') {
+              window.firebaseSaveProduct(bc, title, unit);
+            }
+          }
+        }
+      } catch(e) { console.log('OFF failed:', e.message); }
+    }
+
+    // 4. UPC Item DB як запасний варіант
+    if(!item) {
+      try {
+        const r2 = await fetch(
+          'https://api.upcitemdb.com/prod/trial/lookup?upc=' + bc,
+          { signal: AbortSignal.timeout(7000) }
+        );
+        const d2 = await r2.json();
+        if(d2.code === 'OK' && d2.items && d2.items[0]) {
+          const title = d2.items[0].title || '';
+          if(title.length > 2) {
+            item = { name: title, unit: 'шт', price: 0, fromListex: true };
+            db[bc] = item;
+            if(typeof window.firebaseSaveProduct === 'function') {
+              window.firebaseSaveProduct(bc, title, 'шт');
+            }
+          }
+        }
+      } catch(e) { console.log('UPC ItemDB failed:', e.message); }
+    }
+
+    if(okBtn) { okBtn.textContent = 'OK'; okBtn.disabled = false; }
+
+    if(item) {
+      const badge = item.fromListex
+        ? `<span style="font-size:11px;background:#fff3e0;color:#e65100;border-radius:4px;padding:2px 7px;font-weight:700">🌐 Listex</span>`
+        : item.fromFirebase
+        ? `<span style="font-size:11px;background:#e8eef7;color:#1a4a8a;border-radius:4px;padding:2px 7px;font-weight:700">☁️ Worker</span>`
+        : `<span style="font-size:11px;background:#e6f4ec;color:#1a6640;border-radius:4px;padding:2px 7px;font-weight:700">📄 CSV</span>`;
+      document.getElementById('foundInfo').innerHTML =
+        badge + '&nbsp; <strong>' + escHtml(item.name) + '</strong>' +
+        ' &nbsp;·&nbsp; ' + escHtml(item.unit) +
+        (item.price ? ' &nbsp;·&nbsp; <span class="price-tag">' + item.price.toFixed(2) + ' грн</span>' : '');
+      foundPanel.classList.add('show');
+      const qEl = document.getElementById('foundQty');
+      qEl.value = 1;
+      setTimeout(() => qEl.select(), 50);
+    } else {
+      manualPanel.classList.add('show');
+      document.getElementById('mName').value  = '';
+      document.getElementById('mUnit').value  = 'шт';
+      document.getElementById('mPrice').value = '';
+      document.getElementById('mQty').value   = '';
+      setTimeout(() => document.getElementById('mName').focus(), 50);
+    }
   }
-  const header = 'EAN;Назва;Одиниця;Кількість';
-  const rows = items.map(i => `${i.ean};${i.title};${i.unit || 'шт'};${i.qty}`);
-  const csv = [header, ...rows].join('\n');
-  document.getElementById('exportArea').value = csv;
 
-  const preview = rows.slice(0, 8).join('\n') + (rows.length > 8 ? `\n... ще ${rows.length - 8} рядків` : '');
-  document.getElementById('csvPreview').textContent = header + '\n' + preview;
-}
+  function addFound() {
+    const qty = parseFloat(document.getElementById('foundQty').value) || 1;
+    const item = db[pendingBarcode];
+    pushItem(pendingBarcode, item.name, item.unit, item.price, qty, false);
+    resetScanArea();
+  }
 
-function copyCSV() {
-  const area = document.getElementById('exportArea');
-  if (!area.value) return toast('Список порожній', true);
-  area.select();
-  try {
-    navigator.clipboard.writeText(area.value).then(() => toast('Скопійовано!')).catch(() => {
-      document.execCommand('copy');
-      toast('Скопійовано!');
+  function addManual() {
+    const name  = document.getElementById('mName').value.trim() || 'Без назви';
+    const unit  = document.getElementById('mUnit').value || 'шт';
+    const price = parseFloat(document.getElementById('mPrice').value) || 0;
+    const qty   = parseFloat(document.getElementById('mQty').value) || 1;
+    pushItem(pendingBarcode, name, unit, price, qty, true);
+    resetScanArea();
+  }
+
+  function cancelManual() { resetScanArea(); }
+
+  function pushItem(bc, name, unit, price, qty, isManual) {
+    const existing = scanned.find(r => r.barcode === bc);
+    if(existing) {
+      existing.qty = parseFloat((existing.qty + qty).toFixed(4));
+    } else {
+      scanned.push({ barcode: bc, name, unit, price, qty, isManual });
+    }
+    docSaved = false;
+    renderTable();
+    updateStats();
+  }
+
+  function resetScanArea() {
+    foundPanel.classList.remove('show');
+    manualPanel.classList.remove('show');
+    barcodeInput.value = '';
+    pendingBarcode = '';
+    barcodeInput.focus();
+  }
+
+  const UNITS = ['шт','кг','г','л','мл','м','см','уп','пар','компл','box'];
+
+  function unitSelect(idx, current) {
+    const opts = UNITS.map(u =>
+      `<option value="${u}"${u === current ? ' selected' : ''}>${u}</option>`
+    ).join('');
+    return `<select class="edit-inp" style="width:80px;text-align:left;padding:0 4px;cursor:pointer"
+      onchange="editUnit(${idx},this.value)">${opts}</select>`;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    if(!scanned.length) {
+      tbody.innerHTML = `<tr><td colspan="8">
+        <div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="4" height="4"/><rect x="10" y="4" width="4" height="4"/><rect x="16" y="4" width="4" height="4"/>
+            <rect x="4" y="10" width="4" height="4"/><rect x="16" y="10" width="4" height="4"/>
+            <rect x="4" y="16" width="4" height="4"/><rect x="10" y="16" width="4" height="4"/><rect x="16" y="16" width="4" height="4"/>
+          </svg>
+          <p>Немає відсканованих товарів</p>
+        </div></td></tr>`;
+      document.getElementById('tblFooter').style.display = 'none';
+      return;
+    }
+    tbody.innerHTML = scanned.map((r, i) => {
+      const sum = r.price * r.qty;
+      const unitCell = r.isManual
+        ? unitSelect(i, r.unit)
+        : `<span style="color:var(--text2)">${escHtml(r.unit)}</span>`;
+      return `<tr>
+        <td style="color:var(--text3);font-size:12px;text-align:center">${i+1}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${escHtml(r.barcode)}</td>
+        <td style="word-break:break-word">
+          ${escHtml(r.name)}
+          ${r.isManual ? '&nbsp;<span class="badge manual">вручну</span>' : ''}
+        </td>
+        <td>${unitCell}</td>
+        <td class="num">
+          <input class="edit-inp" type="number" value="${r.qty || ''}" min="0" step="any"
+            onchange="editField(${i},'qty',this.value)" style="width:64px">
+        </td>
+        <td class="num">
+          <input class="edit-inp" type="number" value="${r.price > 0 ? r.price.toFixed(2) : ''}" min="0" step="0.01"
+            onchange="editField(${i},'price',this.value)" style="width:74px">
+        </td>
+        <td class="num" style="font-weight:600;font-family:var(--mono)">${sum.toFixed(2)}</td>
+        <td>
+          <button class="del-btn" onclick="removeRow(${i})" title="Видалити рядок">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('tblFooter').style.display = 'flex';
+  }
+
+  function editField(idx, field, val) {
+    scanned[idx][field] = parseFloat(val) || 0;
+    renderTable();
+    updateStats();
+  }
+
+  function editUnit(idx, val) {
+    scanned[idx].unit = val;
+    updateStats();
+  }
+
+  function removeRow(idx) {
+    scanned.splice(idx, 1);
+    renderTable();
+    updateStats();
+  }
+
+  function updateStats() {
+    const sum = scanned.reduce((a, r) => a + r.price * r.qty, 0);
+    document.getElementById('footerSum').textContent = sum.toFixed(2);
+  }
+
+  function clearAll() {
+    if(!scanned.length) return;
+    if(confirm('Очистити всі відскановані товари?')) {
+      scanned = [];
+      renderTable();
+      updateStats();
+    }
+  }
+
+  function exportCSV() {
+    if(!scanned.length) { alert('Немає даних для експорту'); return; }
+    const rows = [['№','Штрихкод','Найменування','Одиниця','Ціна','Кількість','Сума']];
+    scanned.forEach((r, i) =>
+      rows.push([i+1, r.barcode, r.name, r.unit, r.price.toFixed(2), r.qty, (r.price*r.qty).toFixed(2)])
+    );
+    const csv = rows.map(r => r.join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'pereoblik_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+  }
+
+  function testLoginDist() {
+    setUser({
+      type: 'distributor',
+      name: 'ТОВ Дистриб\'ютор Плюс',
+      email: 'test@dist.ua',
+      phone: '+380 44 123 45 67',
+      distCode: 'DIST-7X9K',
+      hasDistAccess: true
     });
-  } catch(e) {
-    document.execCommand('copy');
-    toast('Скопійовано!');
   }
-}
 
-function clearAll() {
-  if (items.length === 0) return;
-  if (confirm('Очистити весь список?')) {
-    items = [];
-    saveItems();
-    renderList();
-    toast('Список очищено');
+  let currentMode = 'recount';
+  let docSaved = true;
+
+  // ── СТАН КОРИСТУВАЧА ──
+  let currentUser = null; // null = не авторизований
+  // Структура: { type: 'shop'|'distributor', name, email, phone, distCode, hasDistAccess }
+
+  function setUser(user) {
+    currentUser = user;
+    updateAccessUI();
+    if(user && user.type === 'distributor') {
+      setTimeout(() => showDistPanel(), 300);
+    }
   }
-}
 
-function toast(msg, isError = false) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (isError ? ' error' : '');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 2400);
-}
+  function hasDistAccess() {
+    if(!currentUser) return false;
+    if(currentUser.type === 'distributor') return true;
+    if(currentUser.type === 'shop' && currentUser.distCode) return true;
+    return false;
+  }
 
-// Init
-updateHeader();
+  function updateAccessUI() {
+    const access = hasDistAccess();
+    // Оновлюємо кнопки режимів
+    const btnReturn = document.getElementById('btnReturn');
+    const btnCorrective = document.getElementById('btnCorrective');
+    if(btnReturn) {
+      btnReturn.style.opacity = access ? '1' : '0.5';
+      btnReturn.title = access ? '' : 'Доступно тільки при підключенні до дистриб\'ютора';
+    }
+    if(btnCorrective) {
+      btnCorrective.style.opacity = access ? '1' : '0.5';
+      btnCorrective.title = access ? '' : 'Доступно тільки при підключенні до дистриб\'ютора';
+    }
+    // Оновлюємо toolbar
+    updateAuthButtons();
+  }
+
+  function updateAuthButtons() {
+    if(!currentUser) return;
+    const regBtn = document.querySelector('[onclick="openModal(\'register\')"]');
+    const loginBtn = document.querySelector('[onclick="openModal(\'login\')"]');
+    if(regBtn) regBtn.style.display = 'none';
+    if(loginBtn) {
+      loginBtn.textContent = '';
+      loginBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        ${currentUser.name} <span style="opacity:0.6;font-size:11px">(${currentUser.type === 'shop' ? '🏪' : '🏭'})</span>`;
+    }
+  }
+
+  function switchMode(mode) {
+    if(mode === currentMode) return;
+
+    // Перевірка доступу
+    if((mode === 'return' || mode === 'corrective') && !hasDistAccess()) {
+      showDistAccessModal();
+      return;
+    }
+
+    if(scanned.length && !docSaved) {
+      if(!confirm('Є незбережені дані в поточному документі.\nПереключитись без збереження?')) return;
+    }
+    currentMode = mode;
+    docSaved = false;
+
+    ['recount','return','corrective'].forEach(m => {
+      const btn = document.getElementById('btn' + m.charAt(0).toUpperCase() + m.slice(1));
+      if(!btn) return;
+      btn.style.opacity = m === mode ? '1' : (hasDistAccess() ? '0.55' : m === 'recount' ? '0.55' : '0.5');
+      btn.style.transform = m === mode ? 'scale(1.03)' : 'scale(1)';
+    });
+
+    if(mode === 'recount') {
+      scanned = []; renderTable(); updateStats();
+      setDocLabel('recount');
+      window._distInvNum = null; window._origItems = null;
+    } else if(mode === 'return') {
+      scanned = []; renderTable(); updateStats();
+      setDocLabel('return');
+      window._distInvNum = null; window._origItems = null;
+    } else if(mode === 'corrective') {
+      setDocLabel('corrective');
+      openModal('corrective');
+    }
+  }
+
+  function showDistAccessModal() {
+    // Показуємо модалку з поясненням
+    document.getElementById('modalOverlay').classList.add('show');
+    document.getElementById('modalRegister').style.display   = 'none';
+    document.getElementById('modalLogin').style.display      = 'none';
+    document.getElementById('modalCorrective').style.display = 'none';
+    document.getElementById('modalQR').style.display         = 'none';
+    document.getElementById('modalShop').style.display       = 'none';
+    document.getElementById('modalCourier').style.display    = 'none';
+    document.getElementById('modalDistAccess').style.display = 'block';
+  }
+
+  // Попередження при закритті/оновленні сторінки
+  window.addEventListener('beforeunload', function(e) {
+    if(scanned.length && !docSaved) {
+      e.preventDefault();
+      e.returnValue = 'Є незбережені дані. Ви впевнені?';
+    }
+  });
+
+  function setDocLabel(type) {
+    const el  = document.getElementById('docLabel');
+    const btn = document.getElementById('saveBtnLabel');
+    if(type === 'return') {
+      el.style.background = '#fffbe6'; el.style.color = '#5a4200'; el.style.borderColor = '#e6c200';
+      el.textContent = '↩ Накладна на повернення';
+      btn.textContent = 'Зберегти та сформувати QR';
+    } else if(type === 'corrective') {
+      el.style.background = '#eafaea'; el.style.color = '#1a5c1a'; el.style.borderColor = '#7ec87e';
+      el.textContent = '✏️ Коригуюча накладна';
+      btn.textContent = 'Зберегти та сформувати QR';
+    } else {
+      el.style.background = '#e8eef7'; el.style.color = '#1a4a8a'; el.style.borderColor = '#1a4a8a';
+      el.textContent = '📋 Переоблік';
+      btn.textContent = 'Зберегти';
+    }
+  }
+
+  function saveAndQR() {
+    if(!scanned.length) { alert('Спочатку додайте товари'); return; }
+
+    const docType     = document.getElementById('docLabel').textContent.trim();
+    const isCorrective= docType.includes('Коригу');
+    const isReturn    = docType.includes('повернення') || docType.includes('Повернення');
+    const invNum      = (isCorrective ? 'CORR-' : isReturn ? 'RET-' : 'DOC-') + Date.now().toString(36).toUpperCase();
+    const dateStr     = new Date().toLocaleString('uk-UA');
+    const phone       = '123456789';
+    const total       = scanned.reduce((a,r) => a + r.price * r.qty, 0);
+
+    // Перевіряємо зміни для коригуючої
+    let wasChanged = false;
+    let changeNote = 'Без змін';
+    if(isCorrective && window._origItems) {
+      const orig = JSON.parse(window._origItems);
+      const changes = [];
+      scanned.forEach(r => {
+        const o = orig.find(x => x.barcode === r.barcode);
+        if(o && o.qty !== r.qty) changes.push(r.name + ': ' + o.qty + '→' + r.qty + ' ' + r.unit);
+      });
+      wasChanged = changes.length > 0;
+      changeNote = wasChanged ? changes.join('; ') : 'Без змін';
+    }
+
+    const distNum      = window._distInvNum || '';
+    const itemsSummary = scanned.map(r => r.barcode + 'x' + r.qty).join(',');
+    const needQR = isReturn || isCorrective;
+
+    const qrParts = isCorrective
+      ? ['CORR', distNum, invNum, phone, dateStr, total.toFixed(2)+'грн', itemsSummary]
+      : [invNum, phone, dateStr, total.toFixed(2)+'грн', itemsSummary];
+    const qrData = encodeURIComponent(qrParts.join('|'));
+
+    const qrBlock = needQR
+      ? `<div class="qr-block">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${qrData}" width="140" height="140" alt="QR">
+          <div class="qr-label">${invNum}</div>
+          ${isCorrective && wasChanged ? '<div style="font-size:12px;color:#7a4a00;margin-top:6px;font-weight:600">⚠️ Є коригування</div>' : ''}
+        </div>`
+      : isCorrective
+        ? `<div style="text-align:center;padding:1rem;background:#eafaea;border-radius:8px;border:1px solid #7ec87e;margin-bottom:1.5rem;color:#1a5c1a;font-weight:600">
+            ✓ Накладна прийнята без змін — QR не потрібен
+           </div>`
+        : '';
+
+    const labelColor = isCorrective ? '#1a5c1a' : isReturn ? '#5a4200' : '#1a4a8a';
+    const labelBg    = isCorrective ? '#eafaea' : isReturn ? '#fffbe6' : '#e8eef7';
+
+    const rows = scanned.map((r,i) => {
+      const origItem = (isCorrective && window._origItems) ? JSON.parse(window._origItems).find(x=>x.barcode===r.barcode) : null;
+      const changed  = origItem && origItem.qty !== r.qty;
+      const sum = r.price * r.qty;
+      return '<tr' + (changed ? ' style="background:#fff8e1"' : '') + '>'
+        + '<td style="text-align:center">' + (i+1) + '</td>'
+        + '<td style="font-family:monospace;font-size:12px">' + r.barcode + '</td>'
+        + '<td>' + r.name + (changed ? ' <span style="color:#7a4a00;font-size:11px;font-weight:700">(змінено: '+origItem.qty+'→'+r.qty+')</span>' : '') + '</td>'
+        + '<td style="text-align:center">' + r.unit + '</td>'
+        + '<td style="text-align:right">' + r.qty + '</td>'
+        + '<td style="text-align:right">' + r.price.toFixed(2) + '</td>'
+        + '<td style="text-align:right;font-weight:600">' + sum.toFixed(2) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${docType} — ${invNum}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;background:#f5f4f0;padding:2rem 1rem}
+    .doc{max-width:900px;margin:0 auto;background:#fff;border:1px solid #ccc;border-radius:10px;overflow:hidden}
+    .doc-banner{padding:20px 24px;font-size:24px;font-weight:900;letter-spacing:1px;text-align:center;text-transform:uppercase;
+      background:${isReturn ? "#ffe066" : isCorrective ? "#c8f0c8" : "#d6e4f7"};
+      color:${isReturn ? "#5a4200" : isCorrective ? "#1a5c1a" : "#1a4a8a"};
+      border-bottom:5px solid ${isReturn ? "#e6c200" : isCorrective ? "#7ec87e" : "#8eaacc"}}
+    .doc-body{padding:2rem}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+    .title{font-size:18px;font-weight:700;color:#1a1916}
+    .meta{font-size:13px;color:#444;line-height:1.9;text-align:right}
+    .meta strong{color:#1a1916}
+    .qr-block{text-align:center;margin-bottom:1.5rem;padding:1rem;background:#f9f7f4;border-radius:8px;border:1px solid #e2ddd8}
+    .qr-label{font-size:12px;color:#9e9a95;font-family:monospace;letter-spacing:1px;margin-top:6px}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:1.5rem}
+    thead th{background:#d6e4f7;border:1px solid #8eaacc;padding:9px 10px;font-weight:700;font-size:12px;text-align:center}
+    tbody td{border:1px solid #c8c8c8;padding:7px 10px;vertical-align:middle}
+    tbody tr:nth-child(even) td{background:#f5f8ff}
+    .total-row{display:flex;justify-content:flex-end;font-size:15px;font-weight:700;color:#1a1916;border-top:2px solid #8eaacc;padding-top:1rem}
+    .total-row span{font-family:monospace;font-size:18px;margin-left:8px}
+    .footer{margin-top:1.5rem;font-size:12px;color:#9e9a95;text-align:center;border-top:1px solid #e2ddd8;padding-top:1rem}
+    @media print{body{background:#fff;padding:0}.doc{border:none}.no-print{display:none}}
+  </style>
+</head>
+<body>
+  <div class="doc">
+    <div class="doc-banner">
+      ${isReturn ? "↩ НАКЛАДНА НА ПОВЕРНЕННЯ" : isCorrective ? "✏️ КОРИГУЮЧА НАКЛАДНА" : "📋 ПЕРЕОБЛІК"}
+    </div>
+    <div class="doc-body">
+      <div class="header">
+        <div>
+          <div class="title">Документ № ${invNum}</div>
+          ${distNum ? "<div style=\"font-size:13px;color:#6b6760;margin-top:4px\">Накладна дистриб\'ютора: <strong>" + distNum + "</strong></div>" : ""}
+        </div>
+        <div class="meta">
+          <div><strong>Дата:</strong> ${dateStr}</div>
+          <div><strong>Телефон:</strong> ${phone}</div>
+          ${isCorrective ? "<div><strong>Зміни:</strong> " + changeNote + "</div>" : ""}
+        </div>
+      </div>
+      ${qrBlock}
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px">№</th>
+            <th style="width:110px">Штрихкод</th>
+            <th>Найменування</th>
+            <th style="width:65px">Од.</th>
+            <th style="width:65px">К-сть</th>
+            <th style="width:85px">Ціна, грн</th>
+            <th style="width:85px">Сума, грн</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="total-row">Загальна сума: <span>${total.toFixed(2)} грн</span></div>
+      <div class="footer">${docType} · ${dateStr}</div>
+      <div style="text-align:center;margin-top:1.5rem" class="no-print">
+        <button onclick="window.print()" style="background:#1a4a8a;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer">🖨 Роздрукувати</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const docUrl = URL.createObjectURL(blob);
+
+    if(needQR) {
+      // Показуємо QR в модалі
+      const isRet = isReturn;
+      const isCor = isCorrective;
+      document.getElementById('qrModalTitle').textContent = isCor ? '✏️ Коригуюча накладна' : '↩ Накладна на повернення';
+      const banner = document.getElementById('qrBanner');
+      banner.textContent = isCor ? 'КОРИГУЮЧА НАКЛАДНА' : 'НАКЛАДНА НА ПОВЕРНЕННЯ';
+      banner.style.background = isCor ? '#c8f0c8' : '#ffe066';
+      banner.style.color = isCor ? '#1a5c1a' : '#5a4200';
+      document.getElementById('qrImage').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + qrData;
+      document.getElementById('qrInvNum').textContent = invNum;
+      document.getElementById('qrDate').textContent = dateStr;
+      document.getElementById('qrTotal').textContent = 'Сума: ' + total.toFixed(2) + ' грн';
+      document.getElementById('qrOpenDoc').onclick = () => window.open(docUrl, '_blank');
+      openModal('qr');
+    } else {
+      window.open(docUrl, '_blank');
+    }
+
+    window._distInvNum = null;
+    window._origItems  = null;
+    docSaved = true;
+  }
+
+    function returnInvoice() {
+    if(!scanned.length) { alert('Спочатку відскануйте товари для накладної на повернення'); return; }
+
+    const phone = '123456789'; // тестовий режим
+
+    const invNum  = 'RET-' + Date.now().toString(36).toUpperCase();
+    const dateStr = new Date().toLocaleString('uk-UA');
+    const total   = scanned.reduce((a,r) => a + r.price * r.qty, 0);
+    const itemsSummary = scanned.map(r => r.barcode + 'x' + r.qty).join(',');
+    const qrData  = encodeURIComponent([
+      invNum,
+      phone,
+      dateStr,
+      total.toFixed(2) + 'грн',
+      itemsSummary
+    ].join('|'));
+
+    const rows = scanned.map((r,i) => `
+      <tr>
+        <td style="text-align:center">${i+1}</td>
+        <td style="font-family:monospace;font-size:12px">${r.barcode}</td>
+        <td>${r.name}</td>
+        <td style="text-align:center">${r.unit}</td>
+        <td style="text-align:right">${r.qty}</td>
+        <td style="text-align:right">${r.price.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">${(r.price*r.qty).toFixed(2)}</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Накладна на повернення ${invNum}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Manrope',Arial,sans-serif;background:#f5f4f0;padding:2rem 1rem}
+    .doc{max-width:900px;margin:0 auto;background:#fff;border:1px solid #ccc;border-radius:10px;padding:2rem}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+    .title{font-size:22px;font-weight:700;color:#1a1916}
+    .subtitle{font-size:13px;color:#6b6760;margin-top:4px}
+    .meta{font-size:13px;color:#444;line-height:1.8;text-align:right}
+    .meta strong{color:#1a1916}
+    .qr-block{text-align:center;margin-bottom:1.5rem;padding:1rem;background:#f9f7f4;border-radius:8px;border:1px solid #e2ddd8}
+    .qr-block img{display:block;margin:0 auto 8px}
+    .qr-label{font-size:11px;color:#9e9a95;font-family:monospace;letter-spacing:1px}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:1.5rem}
+    thead th{background:#d6e4f7;border:1px solid #8eaacc;padding:9px 10px;font-weight:700;font-size:12px;text-align:center}
+    tbody td{border:1px solid #c8c8c8;padding:7px 10px;vertical-align:middle}
+    tbody tr:nth-child(even) td{background:#f5f8ff}
+    .total-row{display:flex;justify-content:flex-end;font-size:15px;font-weight:700;color:#1a1916;border-top:2px solid #8eaacc;padding-top:1rem}
+    .total-row span{font-family:monospace;font-size:18px;margin-left:8px}
+    .footer{margin-top:1.5rem;font-size:12px;color:#9e9a95;text-align:center;border-top:1px solid #e2ddd8;padding-top:1rem}
+    @media print{body{background:#fff;padding:0}.doc{border:none;border-radius:0;padding:1rem}button{display:none}}
+  </style>
+</head>
+<body>
+  <div class="doc">
+    <div class="header">
+      <div>
+        <div class="title">📋 Накладна на повернення</div>
+        <div class="subtitle">Сформовано автоматично</div>
+      </div>
+      <div class="meta">
+        <div><strong>№</strong> ${invNum}</div>
+        <div><strong>Дата:</strong> ${dateStr}</div>
+        <div><strong>Телефон:</strong> ${phone.trim()}</div>
+      </div>
+    </div>
+
+    <div class="qr-block">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${qrData}" width="120" height="120" alt="QR">
+      <div class="qr-label">${invNum}</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px">№</th>
+          <th style="width:120px">Штрихкод</th>
+          <th>Найменування товару</th>
+          <th style="width:70px">Од.</th>
+          <th style="width:70px">К-сть</th>
+          <th style="width:90px">Ціна, грн</th>
+          <th style="width:90px">Сума, грн</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <div class="total-row">Загальна сума: <span>${total.toFixed(2)} грн</span></div>
+
+    <div class="footer">
+      Накладна сформована на основі переобліку · ${dateStr}
+    </div>
+
+    <div style="text-align:center;margin-top:1.5rem">
+      <button onclick="window.print()" style="background:#1a4a8a;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer">🖨 Роздрукувати</button>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
+
+  function correctiveInvoice() {
+    alert('Коригуюча накладна — функція в розробці');
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── ПАНЕЛЬ ДИСТРИБ'ЮТОРА ──
+  let distStaff = [
+    {name:'Іваненко Олег',   email:'ivanen@dist.ua',    role:'merchandise', active:true,  color:'#3b7cf4', processed:12},
+    {name:'Петренко Василь', email:'petrenko@dist.ua',  role:'merchandise', active:true,  color:'#22c55e', processed:18},
+    {name:'Сидоренко Марія', email:'sydorenko@dist.ua', role:'merchandise', active:false, color:'#f59e0b', processed:9},
+    {name:'Коваль Дмитро',   email:'koval@dist.ua',     role:'expeditor',   active:true,  color:'#e879f9', processed:0},
+    {name:'Мельник Ірина',   email:'melnyk@dist.ua',    role:'expeditor',   active:true,  color:'#fb923c', processed:0},
+  ];
+  let distInvoices = [
+    {id:'RET-M3K9A2', shop:'Продукти Петренка',      type:'return',     sum:868.50,  time:'10:23', geo:true,  status:'pending',   assignee:'Іваненко О.', items:[{n:'Молоко 1л',qty:10,price:45.90},{n:'Хліб пшеничний',qty:5,price:28.50},{n:'Масло вершкове',qty:3,price:89.00}]},
+    {id:'RET-B7X1P4', shop:'Гастроном №1',            type:'return',     sum:1240.00, time:'09:45', geo:true,  status:'confirmed', assignee:'Петренко В.', items:[{n:'Йогурт полуниця',qty:20,price:32.00},{n:'Сир твердий',qty:8,price:85.00}]},
+    {id:'CORR-Q2W8E5',shop:'Мінімаркет Sunrise',      type:'corrective', sum:540.00,  time:'11:10', geo:true,  status:'pending',   assignee:'Іваненко О.', items:[{n:'Вода 1.5л',qty:30,price:18.00}]},
+    {id:'RET-N5R3T7', shop:'Продукти 24/7',            type:'return',     sum:320.50,  time:'08:30', geo:false, status:'rejected',  assignee:'Петренко В.', items:[{n:'Кефір 1л',qty:5,price:38.50},{n:'Сметана 400г',qty:6,price:24.00}]},
+    {id:'CORR-K8L2M6',shop:'Супермаркет Весна',        type:'corrective', sum:2100.00, time:'12:05', geo:true,  status:'pending',   assignee:null,          items:[{n:'Ковбаса варена',qty:10,price:120.00},{n:'Сосиски молочні',qty:15,price:80.00}]},
+    {id:'RET-H4J6K1', shop:'Продукти Іванова',         type:'return',     sum:450.00,  time:'13:20', geo:true,  status:'confirmed', assignee:'Петренко В.', items:[{n:'Олія соняшникова 1л',qty:10,price:45.00}]},
+    {id:'RET-Z9X7C3', shop:'Гастроном Центральний',    type:'return',     sum:680.00,  time:'14:15', geo:true,  status:'pending',   assignee:null,          items:[{n:'Цукор 1кг',qty:20,price:34.00}]},
+  ];
+  let distShops = [
+    {name:'Продукти Петренка',    phone:'+380 67 123 45 67', invoices:24, last:'сьогодні 10:23'},
+    {name:'Гастроном №1',         phone:'+380 50 234 56 78', invoices:18, last:'сьогодні 09:45'},
+    {name:'Мінімаркет Sunrise',   phone:'+380 63 345 67 89', invoices:11, last:'сьогодні 11:10'},
+    {name:'Продукти 24/7',        phone:'+380 67 456 78 90', invoices:7,  last:'вчора 18:30'},
+    {name:'Супермаркет Весна',    phone:'+380 50 567 89 01', invoices:32, last:'сьогодні 12:05'},
+    {name:'Продукти Іванова',     phone:'+380 63 678 90 12', invoices:15, last:'сьогодні 13:20'},
+    {name:'Гастроном Центральний',phone:'+380 67 789 01 23', invoices:8,  last:'сьогодні 14:15'},
+  ];
+
+  function showDistPanel() {
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('distPanel').style.display = 'block';
+    document.getElementById('distPanelName').textContent = currentUser.name;
+    document.getElementById('distPanelCode').textContent = currentUser.distCode || '—';
+    document.getElementById('distTrialInfo').textContent = '14 днів пробного періоду';
+    renderDistTab('staff');
+  }
+
+  function showDistTab(tab) {
+    ['staff','invoices','queue','shops'].forEach(t => {
+      document.getElementById('distTab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+    });
+    renderDistTab(tab);
+  }
+
+  function renderDistTab(tab) {
+    if(tab === 'staff')    renderDistStaff();
+    if(tab === 'invoices') renderDistInvoices(distInvoices);
+    if(tab === 'queue')    renderDistQueue();
+    if(tab === 'shops')    renderDistShops();
+    // Badge
+    const pending = distInvoices.filter(i => i.status === 'pending').length;
+    const badge = document.getElementById('tabInvBadge');
+    badge.textContent = pending > 0 ? pending : '';
+    badge.style.display = pending > 0 ? 'inline' : 'none';
+  }
+
+  function renderDistStaff() {
+    const tbody = document.getElementById('staffTable');
+    if(!distStaff.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text2);font-size:13px">
+        Немає співробітників — додайте першого</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = distStaff.map((s,i) => `
+      <tr>
+        <td style="font-weight:600;display:flex;align-items:center;gap:8px">
+          <div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">${s.name.charAt(0)}</div>
+          ${escHtml(s.name)}
+        </td>
+        <td style="color:var(--text2);font-size:12px">${escHtml(s.email)}</td>
+        <td>${s.role === 'merchandise' ? '<span style="background:var(--accent-bg);color:var(--accent);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">📋 Товарознавець</span>' : '<span style="background:var(--success-bg);color:var(--success);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">🚗 Експедитор</span>'}</td>
+        <td style="text-align:center">
+          <button class="staff-toggle ${s.active ? 'on' : 'off'}" onclick="toggleStaff(${i})" title="${s.active ? 'Активний — клік для паузи' : 'Неактивний — клік для активації'}">
+            <span style="position:absolute;top:3px;${s.active ? 'right:3px' : 'left:3px'};width:16px;height:16px;border-radius:50%;background:#fff"></span>
+          </button>
+        </td>
+        <td>
+          <button onclick="removeStaff(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:2px 5px" title="Видалити">✕</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderDistInvoices(list) {
+    const tbody = document.getElementById('distInvTable');
+    if(!list.length) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text2);font-size:13px">Немає накладних</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map(inv => `
+      <tr>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${inv.id}</td>
+        <td style="font-weight:600">${escHtml(inv.shop)}</td>
+        <td>${inv.type==='return' ? '<span style="background:var(--yellow-bg,#fffbe6);color:#5a4200;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:700">↩ Повернення</span>' : '<span style="background:var(--green-bg,#eafaea);color:#1a5c1a;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:700">✏️ Коригування</span>'}</td>
+        <td style="font-family:var(--mono);font-weight:600">${inv.sum.toFixed(2)}</td>
+        <td style="text-align:center">${inv.geo ? '<span style="color:var(--success)">✅</span>' : '<span style="color:var(--danger)">❌</span>'}</td>
+        <td style="color:var(--text2)">${inv.time}</td>
+        <td>${inv.status==='pending' ? '<span style="color:var(--warn);font-weight:600">⏳ Очікує</span>' : inv.status==='confirmed' ? '<span style="color:var(--success);font-weight:600">✅ Підтверджено</span>' : '<span style="color:var(--danger);font-weight:600">❌ Відхилено</span>'}</td>
+        <td>
+          <button onclick="viewDistInv('${inv.id}')" style="background:var(--accent-bg);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:4px;display:block">👁 Переглянути</button>
+          ${inv.status==='pending' ? `
+            <button onclick="confirmDistInv('${inv.id}')" style="background:var(--success-bg);border:1px solid var(--success);color:var(--success);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;margin-right:4px">✅</button>
+            <button onclick="rejectDistInv('${inv.id}')" style="background:var(--danger-bg);border:1px solid var(--danger);color:var(--danger);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer">❌</button>
+          ` : ''}
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderDistQueue() {
+    const active = distStaff.filter(s => s.role === 'merchandise' && s.active);
+    const el = document.getElementById('distQueueCards');
+    if(!active.length) {
+      el.innerHTML = `<div style="color:var(--text2);font-size:13px;padding:1rem">Немає активних товарознавців. Додайте в розділі "Співробітники".</div>`;
+      return;
+    }
+    el.innerHTML = active.map(s => `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="width:36px;height:36px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff">${s.name.charAt(0)}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700">${escHtml(s.name)}</div>
+            <div style="font-size:11px;color:var(--text3)">${escHtml(s.email)}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:var(--accent);font-family:var(--mono)">${s.processed||0}</div>
+            <div style="font-size:10px;color:var(--text3)">Оброблено</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:var(--warn);font-family:var(--mono)">${distInvoices.filter(i=>i.status==='pending'&&i.assignee===s.name).length}</div>
+            <div style="font-size:10px;color:var(--text3)">В черзі</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--success)">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block"></span>
+          Активний
+        </div>
+      </div>`).join('');
+  }
+
+  function renderDistShops() {
+    const tbody = document.getElementById('distShopsTable');
+    if(!distShops.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text2);font-size:13px">
+        Магазини підключаються за кодом дистриб'ютора при реєстрації</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = distShops.map(s => `
+      <tr>
+        <td style="font-weight:600">${escHtml(s.name)}</td>
+        <td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${escHtml(s.phone)}</td>
+        <td style="text-align:center;font-family:var(--mono)">${s.invoices}</td>
+        <td style="color:var(--text2);font-size:12px">${s.last}</td>
+        <td style="text-align:center"><span style="background:var(--success-bg);color:var(--success);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">✅ Активний</span></td>
+      </tr>`).join('');
+  }
+
+  // ── STAFF ACTIONS ──
+  const staffColors = ['#3b7cf4','#22c55e','#f59e0b','#e879f9','#fb923c','#38bdf8'];
+
+  function openAddStaff() {
+    document.getElementById('modalOverlay').classList.add('show');
+    ['modalRegister','modalLogin','modalCorrective','modalQR','modalShop','modalCourier','modalDistAccess'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+    document.getElementById('modalAddStaff').style.display = 'block';
+    document.getElementById('staffName').value = '';
+    document.getElementById('staffEmail').value = '';
+    document.getElementById('staffRole').value = 'merchandise';
+    document.getElementById('staffMsg').className = 'modal-msg';
+    document.getElementById('staffMsg').textContent = '';
+  }
+
+  function addStaff() {
+    const name  = document.getElementById('staffName').value.trim();
+    const email = document.getElementById('staffEmail').value.trim();
+    const role  = document.getElementById('staffRole').value;
+    if(!name)  return showModalMsg('staffMsg','err','Введіть ім\'я');
+    if(!email || !email.includes('@')) return showModalMsg('staffMsg','err','Введіть коректний email');
+    distStaff.push({ name, email, role, active: true, color: staffColors[distStaff.length % staffColors.length], processed: 0 });
+    showModalMsg('staffMsg','ok','✓ Співробітника додано!');
+    setTimeout(() => { closeModal(); renderDistStaff(); renderDistQueue(); }, 1200);
+  }
+
+  function toggleStaff(idx) {
+    distStaff[idx].active = !distStaff[idx].active;
+    renderDistStaff();
+    renderDistQueue();
+  }
+
+  function removeStaff(idx) {
+    if(confirm('Видалити ' + distStaff[idx].name + '?')) {
+      distStaff.splice(idx, 1);
+      renderDistStaff();
+      renderDistQueue();
+    }
+  }
+
+  function viewDistInv(id) {
+    const inv = distInvoices.find(i => i.id === id);
+    if(!inv) return;
+
+    const rows = (inv.items||[]).map((item,i) => `
+      <tr>
+        <td style="color:var(--text2);font-size:12px;text-align:center">${i+1}</td>
+        <td style="font-weight:600">${escHtml(item.n)}</td>
+        <td style="text-align:right;font-family:var(--mono)">${item.qty}</td>
+        <td style="text-align:right;font-family:var(--mono)">${item.price.toFixed(2)}</td>
+        <td style="text-align:right;font-family:var(--mono);font-weight:700">${(item.qty*item.price).toFixed(2)}</td>
+      </tr>`).join('');
+
+    const statusMap = {pending:'⏳ Очікує підтвердження',confirmed:'✅ Підтверджено',rejected:'❌ Відхилено'};
+    const typeLabel = inv.type==='return' ? '↩ НАКЛАДНА НА ПОВЕРНЕННЯ' : '✏️ КОРИГУЮЧА НАКЛАДНА';
+    const typeBg    = inv.type==='return' ? '#fffbe6' : '#eafaea';
+    const typeColor = inv.type==='return' ? '#5a4200' : '#1a5c1a';
+
+    document.getElementById('modalInvTitle').textContent = inv.id;
+    document.getElementById('modalInvContent').innerHTML = `
+      <div style="background:${typeBg};border-radius:var(--radius);padding:12px;text-align:center;font-size:14px;font-weight:800;color:${typeColor};text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">${typeLabel}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem">
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Магазин</div>
+          <div style="font-size:13px;font-weight:600">${escHtml(inv.shop)}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Час</div>
+          <div style="font-size:13px;font-weight:600">Сьогодні ${inv.time}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Геолокація</div>
+          <div style="font-size:13px;font-weight:600">${inv.geo?'✅ Підтверджена':'❌ Відсутня'}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Статус</div>
+          <div style="font-size:13px;font-weight:600">${statusMap[inv.status]}</div>
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:1rem">
+        <thead><tr>
+          <th style="padding:8px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase">№</th>
+          <th style="padding:8px;text-align:left;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase">Найменування</th>
+          <th style="padding:8px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase">К-сть</th>
+          <th style="padding:8px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase">Ціна</th>
+          <th style="padding:8px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase">Сума</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="text-align:right;font-size:15px;font-weight:800;border-top:1px solid var(--border);padding-top:10px">
+        Загальна сума: <span style="font-family:var(--mono);color:var(--accent)">${inv.sum.toFixed(2)} грн</span>
+      </div>`;
+
+    document.getElementById('modalInvActions').innerHTML = inv.status === 'pending' ? `
+      <button class="btn" onclick="closeModalDirect()">Закрити</button>
+      <button class="btn" style="background:var(--danger-bg);border:1px solid var(--danger);color:var(--danger)" onclick="rejectDistInv('${inv.id}');closeModalDirect()">❌ Відхилити</button>
+      <button class="btn" style="background:var(--success-bg);border:1px solid var(--success);color:var(--success)" onclick="confirmDistInv('${inv.id}');closeModalDirect()">✅ Підтвердити</button>
+    ` : `<button class="btn" onclick="closeModalDirect()">Закрити</button>`;
+
+    document.getElementById('modalOverlay').classList.add('show');
+    document.getElementById('modalInvoice').style.display = 'block';
+    ['modalRegister','modalLogin','modalCorrective','modalQR','modalShop','modalCourier','modalDistAccess','modalAddStaff'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+  }
+
+  function confirmDistInv(id) {
+    const inv = distInvoices.find(i => i.id === id);
+    if(inv) { inv.status = 'rejected'; renderDistInvoices(distInvoices); renderDistTab('invoices'); }
+  }
+
+  function filterDistInv(status, btn) {
+    document.querySelectorAll('#distTabInvoices .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const list = status === 'all' ? distInvoices : distInvoices.filter(i => i.status === status);
+    renderDistInvoices(list);
+  }
+
+  function redistributeDistQueue() {
+    const active = distStaff.filter(s => s.role === 'merchandise' && s.active);
+    if(!active.length) { alert('Немає активних товарознавців'); return; }
+    let qi = 0;
+    distInvoices.filter(i => i.status === 'pending').forEach(inv => {
+      inv.assignee = active[qi % active.length].name;
+      qi++;
+    });
+    renderDistQueue();
+  }
+
+  function logout() {
+    if(confirm('Вийти з акаунту?')) {
+      currentUser = null;
+      document.getElementById('distPanel').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+      // Відновлюємо кнопки
+      const regBtn = document.querySelector('[onclick="openModal(\'register\')"]');
+      const loginBtn = document.querySelector('[onclick="openModal(\'login\')"]');
+      if(regBtn) regBtn.style.display = '';
+      if(loginBtn) { loginBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Увійти`; }
+      updateAccessUI();
+    }
+  }
+
+  function openModal(type) {
+    document.getElementById('modalOverlay').classList.add('show');
+    document.getElementById('modalRegister').style.display    = type === 'register'   ? 'block' : 'none';
+    document.getElementById('modalLogin').style.display       = type === 'login'      ? 'block' : 'none';
+    document.getElementById('modalCorrective').style.display  = type === 'corrective' ? 'block' : 'none';
+    document.getElementById('modalQR').style.display          = type === 'qr'         ? 'block' : 'none';
+    document.getElementById('modalShop').style.display        = type === 'shop'       ? 'block' : 'none';
+    document.getElementById('modalCourier').style.display     = type === 'courier'    ? 'block' : 'none';
+    document.getElementById('modalDistAccess').style.display  = type === 'distAccess' ? 'block' : 'none';
+    document.getElementById('modalAddStaff').style.display    = type === 'addStaff'   ? 'block' : 'none';
+    clearModalMsgs();
+    setTimeout(() => {
+      if(type === 'register')   document.getElementById('rShopName') && document.getElementById('rShopName').focus();
+      else if(type === 'login') document.getElementById('lEmail').focus();
+      else if(type === 'corrective') document.getElementById('corrCode').focus();
+      else if(type === 'shop')  document.getElementById('shopName').focus();
+      else if(type === 'courier') document.getElementById('courierName').focus();
+      else if(type === 'addStaff') document.getElementById('staffName').focus();
+    }, 50);
+  }
+
+  function submitShop() {
+    const name  = document.getElementById('shopName').value.trim();
+    const phone = document.getElementById('shopPhone').value.trim();
+    const city  = document.getElementById('shopCity').value.trim();
+    if(!name)  return showModalMsg('shopMsg','err','Введіть назву магазину');
+    if(!phone) return showModalMsg('shopMsg','err','Введіть телефон');
+    if(!city)  return showModalMsg('shopMsg','err','Введіть місто');
+    showModalMsg('shopMsg','ok','✓ Заявку прийнято! Ми зв\'яжемось з вами найближчим часом.');
+    setTimeout(() => closeModal(), 2000);
+  }
+
+  function submitCourier() {
+    const name    = document.getElementById('courierName').value.trim();
+    const phone   = document.getElementById('courierPhone').value.trim();
+    const vehicle = document.getElementById('courierVehicle').value;
+    if(!name)  return showModalMsg('courierMsg','err','Введіть ім\'я');
+    if(!phone) return showModalMsg('courierMsg','err','Введіть телефон');
+    showModalMsg('courierMsg','ok','✓ Заявку прийнято! Ми зв\'яжемось з вами найближчим часом.');
+    setTimeout(() => closeModal(), 2000);
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('show');
+    clearModalMsgs();
+  }
+
+  function overlayClick(e) {
+    if(e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  function clearModalMsgs() {
+    ['rShopMsg','rDistMsg','lMsg','corrMsg','shopMsg','courierMsg','staffMsg'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el){ el.className = 'modal-msg'; el.textContent = ''; }
+    });
+  }
+
+  function loadCorrectiveFile(input) {
+    const file = input.files[0];
+    if(!file) return;
+    document.getElementById('corrFileName').textContent = file.name;
+    document.getElementById('corrCode').value = '';
+    showModalMsg('corrMsg','ok','✓ Файл вибрано: ' + file.name);
+  }
+
+  function applyCorrection() {
+    const code = document.getElementById('corrCode').value.trim();
+    const file  = document.getElementById('corrFile').files[0];
+    if(!code && !file) return showModalMsg('corrMsg','err','Введіть код або завантажте файл накладної');
+    if(code && code.length < 8) return showModalMsg('corrMsg','err','Код має бути рівно 8 знаків');
+
+    // ТЕСТОВИЙ РЕЖИМ — імітуємо накладну від дистриб'ютора
+    const distInvNum = code || 'TESTFILE';
+    const testItems = [
+      { barcode:'4820001111111', name:'Молоко 1л', unit:'шт', price:45.90, qty:10, isManual:false },
+      { barcode:'4820002222222', name:'Хліб пшеничний', unit:'шт', price:28.50, qty:5,  isManual:false },
+      { barcode:'4820003333333', name:'Масло вершкове', unit:'шт', price:89.00, qty:3,  isManual:false },
+    ];
+
+    // Завантажуємо в таблицю
+    scanned = testItems.map(i => ({...i}));
+
+    // Зберігаємо номер накладної дистриб'ютора
+    window._distInvNum = distInvNum;
+    window._origItems  = JSON.stringify(testItems);
+
+    closeModal();
+    setDocLabel('corrective');
+    renderTable();
+    updateStats();
+
+    showModalMsg('corrMsg','ok','');
+    // Показуємо підказку
+    setTimeout(() => {
+      alert('✓ Накладну ' + distInvNum + ' завантажено.\nВідредагуйте кількості якщо потрібно,\nпотім натисніть "Зберегти та сформувати QR".');
+    }, 200);
+  }
+
+  function showModalMsg(id, type, text) {
+    const el = document.getElementById(id);
+    el.className = 'modal-msg ' + type;
+    el.textContent = text;
+  }
+
+  function selectRegType(type) {
+    document.getElementById('regTypeSelect').style.display = type ? 'block' : 'block';
+    document.getElementById('regFormShop').style.display = type === 'shop' ? 'block' : 'none';
+    document.getElementById('regFormDist').style.display = type === 'distributor' ? 'block' : 'none';
+    document.getElementById('regTypeSelect').style.display = type ? 'none' : 'block';
+    // Reset msgs
+    ['rShopMsg','rDistMsg'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el){ el.className='modal-msg'; el.textContent=''; }
+    });
+    // Highlight selected
+    if(type === 'shop') {
+      document.getElementById('regTypeShop').style.borderColor = 'var(--success)';
+      document.getElementById('regTypeShop').style.background = 'var(--success-bg)';
+    } else if(type === 'distributor') {
+      document.getElementById('regTypeDist').style.borderColor = 'var(--accent)';
+      document.getElementById('regTypeDist').style.background = 'var(--accent-bg)';
+    } else {
+      ['regTypeShop','regTypeDist'].forEach(id => {
+        document.getElementById(id).style.borderColor = 'var(--border2)';
+        document.getElementById(id).style.background = '';
+      });
+    }
+  }
+
+  function submitRegShop() {
+    const phone = document.getElementById('rShopPhone').value.trim();
+    const email = document.getElementById('rShopEmail').value.trim();
+    const name  = document.getElementById('rShopName').value.trim();
+    const owner = document.getElementById('rShopOwner').value.trim();
+    const code  = document.getElementById('rShopCode').value.trim();
+    if(!phone) return showModalMsg('rShopMsg','err','📌 Телефон обов\'язковий — це ваш підпис на документах');
+    if(!email || !email.includes('@')) return showModalMsg('rShopMsg','err','🔑 Введіть коректний email для входу');
+    if(!name)  return showModalMsg('rShopMsg','err','Введіть назву магазину');
+    const hasCode = code.length > 0;
+    showModalMsg('rShopMsg','ok',
+      hasCode
+        ? '✓ Зареєстровано! Підключено до дистриб\'ютора ' + code + '. Всі функції активні!'
+        : '✓ Зареєстровано! Доступний переоблік. Введіть код дистриб\'ютора для накладних.'
+    );
+    setUser({ type:'shop', name: name || owner || phone, email, phone, distCode: code || null, hasDistAccess: hasCode });
+    setTimeout(() => closeModal(), 2000);
+  }
+
+  function submitRegDist() {
+    const phone   = document.getElementById('rDistPhone').value.trim();
+    const email   = document.getElementById('rDistEmail').value.trim();
+    const name    = document.getElementById('rDistName').value.trim();
+    const contact = document.getElementById('rDistContact').value.trim();
+    if(!phone)   return showModalMsg('rDistMsg','err','📌 Телефон обов\'язковий — це основний ідентифікатор');
+    if(!email || !email.includes('@')) return showModalMsg('rDistMsg','err','🔑 Введіть коректний email для входу');
+    if(!name)    return showModalMsg('rDistMsg','err','Введіть назву компанії');
+    const distCode = 'DIST-' + Math.random().toString(36).substr(2,4).toUpperCase();
+    showModalMsg('rDistMsg','ok','✓ Зареєстровано! Пробний період 14 днів. Ваш код для магазинів: ' + distCode);
+    setUser({ type:'distributor', name: name, email, phone, distCode, hasDistAccess: true });
+    setTimeout(() => closeModal(), 2500);
+  }
+
+  function submitRegister() {
+    // ТЕСТОВИЙ РЕЖИМ — без перевірок
+    showModalMsg('rMsg','ok','✓ Тестовий режим: реєстрація успішна!');
+    setTimeout(() => closeModal(), 1500);
+  }
+
+  function submitLogin() {
+    // ТЕСТОВИЙ РЕЖИМ — без перевірок
+    showModalMsg('lMsg','ok','✓ Тестовий режим: вхід успішний!');
+    setTimeout(() => closeModal(), 1500);
+  }
+
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+  barcodeInput.focus();
 </script>
 </body>
 </html>
