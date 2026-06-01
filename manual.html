@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ScanCount — Ручне введення</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --border: #2a2a2a;
+    --accent: #f5c518; --text: #f0f0f0; --muted: #666;
+    --success: #4caf50; --error: #f44336;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100dvh; display: flex; flex-direction: column;
+  }
+
+  header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; gap: 12px;
+  }
+
+  .back-btn { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; padding: 0 4px; }
+
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; color: var(--accent); }
+
+  .content { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+
+  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--accent); }
+
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+
+  label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  input, select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 16px; padding: 11px 13px; border-radius: 8px; outline: none; width: 100%;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus { border-color: var(--accent); }
+
+  input[type=number] { font-family: 'IBM Plex Mono', monospace; }
+
+  .qty-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .qty-controls {
+    display: flex; align-items: center; border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+
+  .qty-btn {
+    background: var(--surface); border: none; color: var(--text);
+    width: 44px; height: 44px; font-size: 22px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .qty-btn:active { background: var(--border); }
+
+  .qty-val {
+    font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600;
+    width: 56px; text-align: center; color: var(--accent);
+    background: var(--bg); height: 44px; line-height: 44px;
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+
+  .btn {
+    background: var(--accent); color: #000; border: none;
+    padding: 13px; border-radius: 8px; font-weight: 700;
+    font-size: 15px; cursor: pointer; width: 100%;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+
+  .btn:active { opacity: 0.7; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-success { background: var(--success); color: #fff; }
+
+  .divider { border: none; border-top: 1px solid var(--border); }
+
+  /* Recent list */
+  .recent-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .recent-item {
+    display: flex; align-items: center; padding: 10px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; gap: 10px; cursor: pointer;
+    transition: border-color 0.15s; margin-bottom: 6px;
+  }
+
+  .recent-item:active { border-color: var(--accent); }
+
+  .ri-info { flex: 1; min-width: 0; }
+
+  .ri-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ri-ean { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .ri-qty {
+    font-family: 'IBM Plex Mono', monospace; font-size: 16px;
+    font-weight: 600; color: var(--accent); flex-shrink: 0;
+  }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--success); color: #fff; font-weight: 600;
+    font-size: 14px; padding: 10px 20px; border-radius: 24px;
+    z-index: 999; transition: transform 0.3s ease; white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--error); }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div class="logo">Ручне введення</div>
+</header>
+
+<div class="content">
+
+  <div class="section-title">Додати товар</div>
+
+  <div class="field-group">
+    <label>EAN / Штрих-код</label>
+    <input type="text" id="inputEan" inputmode="numeric" placeholder="4820017000062" autocomplete="off">
+  </div>
+
+  <div class="field-group">
+    <label>Назва товару</label>
+    <input type="text" id="inputTitle" placeholder="Вода Моршинська 0.5л" autocomplete="off">
+  </div>
+
+  <div class="field-group">
+    <label>Одиниця виміру</label>
+    <select id="inputUnit">
+      <option value="шт">шт</option>
+      <option value="кг">кг</option>
+      <option value="л">л</option>
+      <option value="г">г</option>
+      <option value="мл">мл</option>
+      <option value="уп">уп</option>
+      <option value="пар">пар</option>
+    </select>
+  </div>
+
+  <div class="field-group">
+    <label>Кількість</label>
+    <div class="qty-row">
+      <div class="qty-controls">
+        <button class="qty-btn" onclick="changeQty(-1)">−</button>
+        <div class="qty-val" id="qtyVal">1</div>
+        <button class="qty-btn" onclick="changeQty(1)">+</button>
+      </div>
+      <input type="number" id="inputQtyDirect" value="1" min="1" style="flex:1;font-size:18px"
+        oninput="syncQty(this.value)">
+    </div>
+  </div>
+
+  <button class="btn btn-success" onclick="addManual()">✓ Додати до списку</button>
+  <button class="btn btn-secondary" onclick="clearForm()">Очистити форму</button>
+
+  <hr class="divider">
+
+  <div class="recent-title">Останні додані</div>
+  <div id="recentList"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let qty = 1;
+let items = JSON.parse(localStorage.getItem('scancount_items') || '[]');
+
+function changeQty(delta) {
+  qty = Math.max(1, qty + delta);
+  document.getElementById('qtyVal').textContent = qty;
+  document.getElementById('inputQtyDirect').value = qty;
+}
+
+function syncQty(val) {
+  qty = Math.max(1, parseInt(val) || 1);
+  document.getElementById('qtyVal').textContent = qty;
+}
+
+function addManual() {
+  const ean = document.getElementById('inputEan').value.trim().replace(/\D/g, '');
+  const title = document.getElementById('inputTitle').value.trim();
+  const unit = document.getElementById('inputUnit').value;
+
+  if (!title) return toast('Введіть назву товару', true);
+  if (!ean) return toast('Введіть штрих-код', true);
+
+  const existing = items.find(i => i.ean === ean);
+  if (existing) {
+    existing.qty += qty;
+    toast(`+${qty} до "${existing.title.slice(0, 20)}..."`);
+  } else {
+    items.unshift({ ean, title, unit, qty });
+    toast(`Додано: ${title.slice(0, 28)}`);
+  }
+
+  localStorage.setItem('scancount_items', JSON.stringify(items));
+  renderRecent();
+  clearForm();
+}
+
+function clearForm() {
+  document.getElementById('inputEan').value = '';
+  document.getElementById('inputTitle').value = '';
+  document.getElementById('inputUnit').value = 'шт';
+  qty = 1;
+  document.getElementById('qtyVal').textContent = '1';
+  document.getElementById('inputQtyDirect').value = '1';
+  document.getElementById('inputEan').focus();
+}
+
+function renderRecent() {
+  const container = document.getElementById('recentList');
+  const recent = items.slice(0, 5);
+  if (recent.length === 0) {
+    container.innerHTML = '<p style="font-size:13px;color:var(--muted)">Список порожній</p>';
+    return;
+  }
+  container.innerHTML = recent.map(item => `
+    <div class="recent-item" onclick="fillFromRecent('${item.ean}','${item.title.replace(/'/g,"\\'")}','${item.unit}')">
+      <div class="ri-info">
+        <div class="ri-name">${item.title}</div>
+        <div class="ri-ean">${item.ean}</div>
+      </div>
+      <div class="ri-qty">${item.qty} ${item.unit}</div>
+    </div>
+  `).join('');
+}
+
+function fillFromRecent(ean, title, unit) {
+  document.getElementById('inputEan').value = ean;
+  document.getElementById('inputTitle').value = title;
+  document.getElementById('inputUnit').value = unit;
+}
+
+function toast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+renderRecent();
+</script>
+</body>
+</html>
