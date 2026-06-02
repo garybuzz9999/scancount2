@@ -34,6 +34,41 @@
 
     window._firebaseReady = true;
     console.log("✅ Cloudflare Worker connected");
+
+    function startCameraScan() {
+      // Відкриваємо input[type=file] з capture=environment для камери
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/*';
+      inp.capture = 'environment';
+      inp.style.display = 'none';
+      inp.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        // Імпортуємо ZXing для розпізнавання штрих-коду
+        try {
+          const { BrowserMultiFormatReader } = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm');
+          const reader = new BrowserMultiFormatReader();
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          img.onload = async () => {
+            try {
+              const result = await reader.decodeFromImageElement(img);
+              document.getElementById('barcodeInput').value = result.getText();
+              document.getElementById('okBtn').click();
+            } catch(e) {
+              alert('Штрих-код не розпізнано. Спробуйте ще раз або введіть вручну.');
+            }
+          };
+        } catch(e) {
+          alert('Помилка сканера. Введіть штрих-код вручну.');
+        }
+        document.body.removeChild(inp);
+      };
+      document.body.appendChild(inp);
+      inp.click();
+    }
+
   </script>
 
   <!-- External barcode lookup: Open Food Facts + UPC Item DB -->
@@ -758,6 +793,7 @@
       <input class="scan-input" id="barcodeInput" type="text"
         placeholder="Відскануйте або введіть штрихкод..."
         autocomplete="off" inputmode="numeric">
+      <button onclick="startCameraScan()" style="height:52px;width:52px;font-size:22px;background:var(--surface2);color:var(--accent);border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">📷</button>
       <button id="okBtn" style="height:52px;padding:0 20px;font-size:16px;font-weight:700;background:#1a4a8a;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;flex-shrink:0">OK</button>
     </div>
     <div class="csv-hint">
