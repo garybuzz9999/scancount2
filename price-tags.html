@@ -3,394 +3,153 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ScanCount — Цінники</title>
+<title>Друк цінників</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
-
 :root {
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --border: #2a2a2a;
-  --accent: #f5c518;
-  --text: #f0f0f0;
-  --muted: #666;
-  --success: #4caf50;
-  --error: #f44336;
+  --bg: #f5f4f0; --surface: #ffffff; --surface2: #f0ede8;
+  --border: #e2ddd8; --border2: #ccc8c2;
+  --text: #1a1916; --text2: #6b6760; --text3: #9e9a95;
+  --accent: #1a4a8a; --accent-bg: #e8eef7;
+  --success: #1a6640; --success-bg: #e6f4ec;
+  --danger: #a02020; --danger-bg: #faeaea;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Manrope', sans-serif;
+  --radius: 10px; --radius-lg: 14px;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100dvh; display: flex; flex-direction: column; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
+.back-btn { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; padding: 0 4px; }
+.header-title { font-size: 17px; font-weight: 700; flex: 1; }
+.badge { background: var(--accent-bg); color: var(--accent); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--accent); }
+.content { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; }
+.card-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.scan-row { display: flex; gap: 8px; }
+.scan-input { flex: 1; height: 48px; font-family: var(--mono); font-size: 16px; border: 1.5px solid var(--border2); border-radius: var(--radius); background: var(--surface2); color: var(--text); padding: 0 14px; outline: none; }
+.scan-input:focus { border-color: var(--accent); }
+.btn-add { height: 48px; padding: 0 20px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-weight: 700; font-size: 20px; cursor: pointer; }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'IBM Plex Sans', sans-serif;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
+/* Приклад цінника */
+.example-wrap { display: flex; gap: 14px; align-items: flex-start; }
+.tag-demo { width: 116px; height: 80px; border: 1.5px solid #bbb; border-radius: 4px; background: #fff; display: flex; flex-direction: column; justify-content: space-between; padding: 5px 7px; font-family: Arial, sans-serif; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.tag-demo-name { font-size: 8px; font-weight: bold; line-height: 1.25; color: #000; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.tag-demo-bottom { display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #ddd; padding-top: 3px; }
+.tag-demo-price { font-size: 20px; font-weight: 900; color: #000; line-height: 1; }
+.tag-demo-unit { font-size: 7px; color: #555; text-align: right; line-height: 1.4; }
 
-header {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.back-btn {
-  background: none;
-  border: none;
-  color: var(--accent);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0 4px;
-}
-
-.logo {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 24px;
-  letter-spacing: 2px;
-  color: var(--accent);
-}
-
-.badge {
-  background: var(--accent);
-  color: #000;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 10px;
-  letter-spacing: 0.5px;
-}
-
-.content {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  flex: 1;
-}
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-}
-
-.panel-title {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.panel-title::before {
-  content: '';
-  width: 3px;
-  height: 12px;
-  background: var(--accent);
-  border-radius: 2px;
-}
-
-.input-row {
-  display: flex;
-  gap: 8px;
-}
-
-input[type=text], input[type=number] {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 16px;
-  padding: 10px 13px;
-  border-radius: 8px;
-  outline: none;
-  transition: border-color 0.2s;
-  width: 100%;
-}
-
-input:focus { border-color: var(--accent); }
-
-.btn {
-  background: var(--accent);
-  color: #000;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity 0.15s;
-}
-
-.btn:active { opacity: 0.7; }
-.btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
-.btn-success { background: var(--success); color: #fff; }
-.btn-danger { background: var(--error); color: #fff; }
-
-/* Items list */
-.item-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-}
-
+/* Список товарів */
+.item-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .item-row:last-child { border-bottom: none; }
-
+.item-preview { flex-shrink: 0; }
+.preview-label { font-size: 9px; color: var(--text3); text-align: center; margin-bottom: 2px; }
+.tag-sm { width: 90px; height: 62px; border: 1px solid #bbb; border-radius: 3px; background: #fff; display: flex; flex-direction: column; justify-content: space-between; padding: 4px 5px; font-family: Arial, sans-serif; }
+.tag-sm-name { font-size: 6.5px; font-weight: bold; line-height: 1.2; color: #000; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tag-sm-bottom { display: flex; justify-content: space-between; align-items: flex-end; border-top: 0.5px solid #ddd; padding-top: 2px; }
+.tag-sm-price { font-size: 15px; font-weight: 900; color: #000; line-height: 1; }
+.tag-sm-unit { font-size: 6px; color: #555; text-align: right; }
 .item-info { flex: 1; min-width: 0; }
-
-.item-name {
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.item-ean {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.price-input {
-  width: 90px;
-  font-size: 14px;
-  padding: 7px 10px;
-  text-align: center;
-}
-
-.del-btn {
-  background: none;
-  border: none;
-  color: var(--error);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.empty {
-  padding: 30px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.btn-row {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-row .btn { flex: 1; }
-
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%) translateY(80px);
-  background: var(--success);
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  padding: 10px 20px;
-  border-radius: 24px;
-  z-index: 999;
-  transition: transform 0.3s;
-  white-space: nowrap;
-}
+.item-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-ean { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 2px; }
+.price-input { height: 38px; font-family: var(--mono); font-size: 15px; font-weight: 600; border: 1.5px solid var(--border2); border-radius: var(--radius); background: var(--surface2); color: var(--text); padding: 0 10px; text-align: center; outline: none; width: 100%; margin-top: 6px; }
+.price-input:focus { border-color: var(--accent); }
+.del-btn { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0; }
+.empty { padding: 30px; text-align: center; color: var(--text3); font-size: 13px; }
+.btn-row { display: flex; gap: 8px; }
+.btn { flex: 1; height: 48px; border-radius: var(--radius); font-family: var(--sans); font-weight: 700; font-size: 14px; cursor: pointer; border: 1px solid var(--border2); background: var(--surface2); color: var(--text2); }
+.btn-print { background: var(--success-bg); border: 2px solid var(--success); color: var(--success); }
+.btn-print:disabled { opacity: 0.4; cursor: not-allowed; }
+.hint { text-align: center; font-size: 11px; color: var(--text3); }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--success); color: #fff; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 24px; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
 .toast.show { transform: translateX(-50%) translateY(0); }
-.toast.error { background: var(--error); }
+.toast.error { background: var(--danger); }
 
-/* ===== ДРУК ===== */
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-  body, .content, header, .panel, .btn-row, .toast { display: none !important; }
-
+  body > * { display: none !important; }
   #printArea { display: block !important; }
-
-  @page {
-    size: A4;
-    margin: 5mm;
-  }
+  @page { size: A4; margin: 5mm; }
 }
-
-#printArea {
-  display: none;
-}
-
-/* Аркуш A4 з цінниками 58×40мм */
-.print-page {
-  width: 200mm;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3mm;
-  padding: 2mm;
-}
-
-/* Один цінник 58×40мм */
-.price-tag {
-  width: 58mm;
-  height: 40mm;
-  border: 0.5pt solid #000;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 2mm 3mm;
-  font-family: Arial, sans-serif;
-  page-break-inside: avoid;
-  overflow: hidden;
-  position: relative;
-}
-
-.tag-name {
-  font-size: 9pt;
-  font-weight: bold;
-  line-height: 1.2;
-  max-height: 22mm;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
-.tag-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  border-top: 0.5pt solid #ccc;
-  padding-top: 1mm;
-  margin-top: 1mm;
-}
-
-.tag-price {
-  font-size: 18pt;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -1pt;
-}
-
-.tag-price-label {
-  font-size: 7pt;
-  color: #555;
-  text-align: right;
-  line-height: 1.3;
-}
-
-/* Превʼю цінника */
-.tag-preview {
-  width: 116px;
-  height: 80px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: #fff;
-  color: #000;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 4px 6px;
-  font-family: Arial, sans-serif;
-  flex-shrink: 0;
-}
-
-.preview-name {
-  font-size: 8px;
-  font-weight: bold;
-  line-height: 1.2;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  color: #000;
-}
-
-.preview-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  border-top: 1px solid #ddd;
-  padding-top: 2px;
-}
-
-.preview-price {
-  font-size: 16px;
-  font-weight: 900;
-  color: #000;
-  line-height: 1;
-}
-
-.preview-unit {
-  font-size: 7px;
-  color: #555;
-  text-align: right;
-  line-height: 1.3;
-}
+#printArea { display: none; }
+.print-page { display: flex; flex-wrap: wrap; gap: 3mm; padding: 2mm; }
+.print-tag { width: 58mm; height: 40mm; border: 0.5pt solid #000; display: flex; flex-direction: column; justify-content: space-between; padding: 2mm 3mm; font-family: Arial, sans-serif; page-break-inside: avoid; overflow: hidden; }
+.print-tag-name { font-size: 9pt; font-weight: bold; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.print-tag-bottom { display: flex; justify-content: space-between; align-items: flex-end; border-top: 0.5pt solid #ccc; padding-top: 1mm; }
+.print-tag-price { font-size: 18pt; font-weight: 900; line-height: 1; }
+.print-tag-unit { font-size: 7pt; color: #555; text-align: right; line-height: 1.3; }
 </style>
 </head>
 <body>
 
 <header>
   <button class="back-btn" onclick="location.href='index.html'">←</button>
-  <div class="logo">Цінники</div>
+  <div class="header-title">🏷 Друк цінників</div>
   <span class="badge">58×40мм</span>
 </header>
 
 <div class="content">
 
-  <!-- Сканування -->
-  <div class="panel">
-    <div class="panel-title">Сканувати або ввести штрих-код</div>
-    <div class="input-row">
-      <input type="text" id="barcodeInput" inputmode="numeric"
-        placeholder="Штрих-код..."
-        autocomplete="off"
-        onkeydown="if(event.key==='Enter') addItem()">
-      <button class="btn" onclick="addItem()">+</button>
+  <div class="card">
+    <div class="card-title">Приклад цінника</div>
+    <div class="example-wrap">
+      <div>
+        <div class="tag-demo">
+          <div class="tag-demo-name">Молоко Яготинське 2.5% 1л пастеризоване</div>
+          <div class="tag-demo-bottom">
+            <div class="tag-demo-price">45<span style="font-size:10px">грн</span></div>
+            <div class="tag-demo-unit">за 1 шт<br><span style="color:#bbb;font-size:6px">4820016254879</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        <div>📐 <strong>58×40мм</strong> — стандарт</div>
+        <div>📄 На А4 до <strong>24 шт</strong></div>
+        <div>✏️ Назва + ціна + од.виміру</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--text3)">Штрихкод для внутрішнього використання</div>
+      </div>
     </div>
   </div>
 
-  <!-- Список товарів -->
-  <div class="panel">
-    <div class="panel-title">Товари <span id="countBadge" style="color:var(--accent)">0</span></div>
-    <div id="itemsList">
-      <div class="empty">Скануйте товари щоб додати до списку цінників</div>
+  <div class="card">
+    <div class="card-title">Сканувати або ввести штрих-код</div>
+    <div class="scan-row">
+      <input type="text" class="scan-input" id="barcodeInput"
+        inputmode="numeric" placeholder="Відскануйте штрихкод..."
+        autocomplete="off" onkeydown="if(event.key==='Enter') addItem()">
+      <button class="btn-add" onclick="addItem()">+</button>
     </div>
   </div>
 
-  <!-- Кнопки -->
+  <div class="card">
+    <div class="card-title">Товари <span id="countBadge" style="color:var(--accent)">0</span></div>
+    <div id="itemsList"><div class="empty">Скануйте товари щоб додати до списку цінників</div></div>
+  </div>
+
   <div class="btn-row">
-    <button class="btn btn-secondary" onclick="clearAll()">✕ Очистити</button>
-    <button class="btn btn-success" onclick="printTags()" id="printBtn" disabled>🖨 Друкувати цінники</button>
+    <button class="btn" onclick="clearAll()">✕ Очистити</button>
+    <button class="btn btn-print" onclick="printTags()" id="printBtn" disabled>💾 Зберегти PDF</button>
   </div>
 
-  <div style="font-size:11px;color:var(--muted);text-align:center">
-    На аркуші A4 поміщається до 24 цінників (6×4)
+  <div class="card" style="background:var(--accent-bg);border-color:#b8cfe8">
+    <div class="card-title" style="color:var(--accent)">Як користуватись</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.9">
+      <div>1️⃣ Скануйте штрих-коди товарів — вони додадуться до списку</div>
+      <div>2️⃣ Введіть роздрібну ціну для кожного товару</div>
+      <div>3️⃣ Натисніть <strong style="color:var(--success)">💾 Зберегти PDF</strong> — файл збережеться на пристрій</div>
+      <div>4️⃣ Відкрийте PDF на ПК або телефоні та роздрукуйте</div>
+      <div style="margin-top:8px;padding:8px 10px;background:#fff;border-radius:8px;font-size:11px;color:var(--text3)">
+        📐 Формат друку: A4, альбомна орієнтація<br>
+        🖨 На одному аркуші: до 24 цінників 58×40мм<br>
+        ✂️ Після друку розрізати по лініях
+      </div>
+    </div>
   </div>
 
 </div>
 
-<!-- Зона друку (прихована на екрані) -->
-<div id="printArea">
-  <div class="print-page" id="printPage"></div>
-</div>
-
+<div id="printArea"><div class="print-page" id="printPage"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -401,123 +160,80 @@ async function addItem() {
   const input = document.getElementById('barcodeInput');
   const ean = input.value.trim().replace(/\D/g, '');
   if (!ean) return;
-
-  // Перевіряємо чи вже є
-  if (items.find(i => i.ean === ean)) {
-    toast('Вже є в списку', true);
-    input.value = '';
-    input.focus();
-    return;
-  }
-
+  if (items.find(i => i.ean === ean)) { toast('Вже є в списку', true); input.value = ''; input.focus(); return; }
   try {
     const res = await fetch(`${WORKER_URL}/${ean}`);
     const data = await res.json();
-
-    const item = {
-      ean,
-      title: data.found ? data.title : 'Невідомий товар',
-      unit: data.found ? (data.unit || 'шт') : 'шт',
-      price: ''
-    };
-
+    const item = { ean, title: data.found ? data.title : 'Товар ' + ean, unit: data.found ? (data.unit || 'шт') : 'шт', price: '' };
     items.push(item);
     renderList();
-    toast(data.found ? `Додано: ${item.title.slice(0,25)}` : `EAN ${ean} — введіть назву`);
+    toast(data.found ? `Додано: ${item.title.slice(0,25)}` : `EAN ${ean} — введіть ціну`);
   } catch(e) {
-    // Якщо worker недоступний — додаємо вручну
     items.push({ ean, title: 'Товар ' + ean, unit: 'шт', price: '' });
     renderList();
-    toast('Додано (без назви)', true);
   }
-
-  input.value = '';
-  input.focus();
+  input.value = ''; input.focus();
 }
 
 function renderList() {
-  const container = document.getElementById('itemsList');
+  const c = document.getElementById('itemsList');
   document.getElementById('countBadge').textContent = items.length;
   document.getElementById('printBtn').disabled = items.length === 0;
-
-  if (items.length === 0) {
-    container.innerHTML = '<div class="empty">Скануйте товари щоб додати до списку цінників</div>';
-    return;
-  }
-
-  container.innerHTML = items.map((item, idx) => `
+  if (!items.length) { c.innerHTML = '<div class="empty">Скануйте товари щоб додати до списку цінників</div>'; return; }
+  c.innerHTML = items.map((item, idx) => `
     <div class="item-row">
-      <div class="tag-preview">
-        <div class="preview-name">${item.title}</div>
-        <div class="preview-bottom">
-          <div class="preview-price">${item.price || '—'}</div>
-          <div class="preview-unit">грн/${item.unit}</div>
+      <div class="item-preview">
+        <div class="preview-label">превʼю</div>
+        <div class="tag-sm">
+          <div class="tag-sm-name">${item.title}</div>
+          <div class="tag-sm-bottom">
+            <div class="tag-sm-price" id="prev${idx}">${item.price || '—'}<span style="font-size:7px">грн</span></div>
+            <div class="tag-sm-unit">за 1 ${item.unit}</div>
+          </div>
         </div>
       </div>
       <div class="item-info">
         <div class="item-name">${item.title}</div>
         <div class="item-ean">${item.ean} · ${item.unit}</div>
-        <input type="number"
-          class="price-input"
-          style="margin-top:6px;width:100%"
-          placeholder="Ціна грн"
-          value="${item.price}"
-          min="0"
-          step="0.5"
+        <input type="number" class="price-input" placeholder="Ціна, грн"
+          value="${item.price}" min="0" step="0.5"
           oninput="setPrice(${idx}, this.value)"
-          onkeydown="if(event.key==='Enter'){let next=document.querySelectorAll('.price-input')[${idx}+1]; if(next) next.focus();}">
+          onkeydown="if(event.key==='Enter'){let n=document.querySelectorAll('.price-input')[${idx}+1];if(n)n.focus();}">
       </div>
       <button class="del-btn" onclick="removeItem(${idx})">✕</button>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 function setPrice(idx, val) {
   items[idx].price = val;
-  // Оновлюємо превʼю
-  const previews = document.querySelectorAll('.preview-price');
-  if (previews[idx]) previews[idx].textContent = val || '—';
+  const el = document.getElementById('prev' + idx);
+  if (el) el.innerHTML = (val || '—') + '<span style="font-size:7px">грн</span>';
 }
 
-function removeItem(idx) {
-  items.splice(idx, 1);
-  renderList();
-}
-
-function clearAll() {
-  if (!items.length) return;
-  items = [];
-  renderList();
-  toast('Очищено');
-}
+function removeItem(idx) { items.splice(idx, 1); renderList(); }
+function clearAll() { if (!items.length) return; items = []; renderList(); toast('Очищено'); }
 
 function printTags() {
   const noPrice = items.filter(i => !i.price);
-  if (noPrice.length > 0) {
-    if (!confirm(`${noPrice.length} товарів без ціни. Друкувати все одно?`)) return;
-  }
-
-  // Генеруємо цінники
-  const printPage = document.getElementById('printPage');
-  printPage.innerHTML = items.map(item => `
-    <div class="price-tag">
-      <div class="tag-name">${item.title}</div>
-      <div class="tag-bottom">
-        <div class="tag-price">${item.price || '—'} <span style="font-size:10pt">грн</span></div>
-        <div class="tag-price-label">за 1 ${item.unit}<br><span style="font-size:6pt;color:#999">${item.ean}</span></div>
+  if (noPrice.length && !confirm(`${noPrice.length} товарів без ціни. Друкувати?`)) return;
+  document.getElementById('printPage').innerHTML = items.map(item => `
+    <div class="print-tag">
+      <div class="print-tag-name">${item.title}</div>
+      <div class="print-tag-bottom">
+        <div class="print-tag-price">${item.price || '—'} <span style="font-size:10pt">грн</span></div>
+        <div class="print-tag-unit">за 1 ${item.unit}<br><span style="font-size:6pt;color:#999">${item.ean}</span></div>
       </div>
-    </div>
-  `).join('');
-
-  window.print();
+    </div>`).join('');
+  // Відкриваємо діалог друку — вибрати "Зберегти як PDF"
+  setTimeout(() => {
+    window.print();
+  }, 300);
 }
 
 function toast(msg, isError = false) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (isError ? ' error' : '');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove('show'), 2500);
+  t.textContent = msg; t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2500);
 }
 </script>
 </body>
