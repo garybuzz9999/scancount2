@@ -874,28 +874,29 @@
     </div>
   </div>
 
-  <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap">
+  <div style="margin-top:1rem;display:flex;flex-direction:column;gap:8px">
     <button id="btnRecount" onclick="switchMode('recount')"
-      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#e8eef7;border:2px solid #1a4a8a;color:#1a4a8a;border-radius:var(--radius);cursor:pointer">
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#e8eef7;border:2px solid #1a4a8a;color:#1a4a8a;border-radius:var(--radius);cursor:pointer">
       📋 Переоблік
     </button>
+    <button onclick="location.href='price-tags.html'"
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#fffbe6;border:2px solid #f5c518;color:#7a5c00;border-radius:var(--radius);cursor:pointer">
+      🏷 Друк цінників
+    </button>
     <button id="btnReturn" onclick="switchMode('return')"
-      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#fff9e6;border:2px solid #e6c200;color:#5a4200;border-radius:var(--radius);cursor:pointer">
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#fff9e6;border:2px solid #e6c200;color:#5a4200;border-radius:var(--radius);cursor:pointer">
       ↩ Накладна на повернення
     </button>
     <button id="btnCorrective" onclick="switchMode('corrective')"
-      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#eafaea;border:2px solid #7ec87e;color:#1a5c1a;border-radius:var(--radius);cursor:pointer">
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#eafaea;border:2px solid #7ec87e;color:#1a5c1a;border-radius:var(--radius);cursor:pointer">
       ✏️ Коригуюча накладна
     </button>
-  </div>
-
-  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
     <button onclick="openModal('shop')"
-      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#fff3e8;border:2px solid #e87a1a;color:#7a3500;border-radius:var(--radius);cursor:pointer">
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#fff3e8;border:2px solid #e87a1a;color:#7a3500;border-radius:var(--radius);cursor:pointer">
       🛒 Стати інтернет-магазином
     </button>
     <button onclick="openModal('courier')"
-      style="flex:1;height:48px;font-size:14px;font-weight:700;background:#f0eafa;border:2px solid #7c3aed;color:#4a1a8a;border-radius:var(--radius);cursor:pointer">
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#f0eafa;border:2px solid #7c3aed;color:#4a1a8a;border-radius:var(--radius);cursor:pointer">
       🚴 Стати кур'єром
     </button>
   </div>
