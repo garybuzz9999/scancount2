@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScanCount — Адмін</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f4f0; --surface: #fff; --surface2: #f0ede8;
+  --border: #e2ddd8; --border2: #ccc8c2;
+  --text: #1a1916; --text2: #6b6760; --text3: #9e9a95;
+  --accent: #1a4a8a; --accent-bg: #e8eef7;
+  --success: #1a6640; --success-bg: #e6f4ec;
+  --danger: #a02020; --danger-bg: #faeaea;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Manrope', sans-serif;
+  --radius: 10px; --radius-lg: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100dvh; display: flex; flex-direction: column; }
+
+/* LOGIN */
+#loginPage {
+  flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.login-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 32px 28px;
+  width: 100%; max-width: 360px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+}
+.login-logo {
+  font-family: var(--mono); font-size: 22px; font-weight: 700;
+  color: var(--accent); letter-spacing: 2px; margin-bottom: 6px;
+}
+.login-sub { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
+.field { margin-bottom: 14px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+.field input {
+  width: 100%; height: 46px; font-family: var(--mono); font-size: 15px;
+  border: 1.5px solid var(--border2); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text); padding: 0 14px; outline: none;
+}
+.field input:focus { border-color: var(--accent); }
+.btn-login {
+  width: 100%; height: 48px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius); font-family: var(--sans);
+  font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 4px;
+}
+.btn-login:active { opacity: 0.85; }
+.login-error { font-size: 12px; color: var(--danger); margin-top: 8px; display: none; text-align: center; }
+
+/* ADMIN PANEL */
+#adminPage { display: none; flex: 1; flex-direction: column; }
+
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-logo { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+.header-badge { background: var(--danger-bg); color: var(--danger); font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 20px; border: 1px solid #e0aaaa; }
+.btn-logout { margin-left: auto; background: none; border: 1px solid var(--border2); color: var(--text2); padding: 6px 14px; border-radius: var(--radius); font-family: var(--sans); font-weight: 600; font-size: 13px; cursor: pointer; }
+
+.content { padding: 20px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+.card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.stat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
+.stat-val { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; }
+.stat-label { font-size: 11px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--text3); }
+.info-val { font-weight: 600; font-family: var(--mono); font-size: 12px; }
+
+.section-coming {
+  background: var(--accent-bg); border: 1px dashed #b8cfe8;
+  border-radius: var(--radius); padding: 20px; text-align: center;
+  color: var(--text2); font-size: 13px; line-height: 1.7;
+}
+
+footer {
+  background: #1a1916; padding: 12px 20px; text-align: center;
+  font-size: 12px; color: #666; display: flex; align-items: center;
+  justify-content: center; gap: 16px; flex-wrap: wrap;
+}
+footer a { color: #888; text-decoration: none; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--success); color: #fff; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 24px; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">SCANCOUNT</div>
+    <div class="login-sub">Адміністративна панель</div>
+    <div class="field">
+      <label>Логін</label>
+      <input type="text" id="loginInput" placeholder="admin" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Пароль</label>
+      <input type="password" id="passInput" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Увійти</button>
+    <div class="login-error" id="loginError">Невірний логін або пароль</div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPage">
+  <header>
+    <div class="header-logo">SCANCOUNT</div>
+    <span class="header-badge">🔒 АДМІН</span>
+    <button class="btn-logout" onclick="doLogout()">Вийти</button>
+  </header>
+
+  <div class="content">
+
+    <!-- Статистика -->
+    <div class="card">
+      <div class="card-title">📊 Статистика бази</div>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-val">41k</div>
+          <div class="stat-label">Товарів в KV</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">151k</div>
+          <div class="stat-label">Listex база</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statUsers">—</div>
+          <div class="stat-label">Сесій сьогодні</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">✅</div>
+          <div class="stat-label">Worker статус</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Інфо -->
+    <div class="card">
+      <div class="card-title">⚙️ Системна інформація</div>
+      <div class="info-row">
+        <span class="info-label">Сайт</span>
+        <span class="info-val">scancount.online</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Worker</span>
+        <span class="info-val" id="workerStatus">перевірка...</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-val">scancount.service@gmail.com</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Версія</span>
+        <span class="info-val">1.0.0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Дата</span>
+        <span class="info-val" id="currentDate">—</span>
+      </div>
+    </div>
+
+    <!-- Швидкі дії -->
+    <div class="card">
+      <div class="card-title">🚀 Швидкі дії</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="index.html" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
+          📋 Перейти до переобліку
+        </a>
+        <a href="price-tags.html" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
+          🏷 Друк цінників
+        </a>
+        <a href="https://github.com/garybuzz9999/scancount-import/actions" target="_blank" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
+          🔄 GitHub Actions (парсери)
+        </a>
+        <a href="https://dash.cloudflare.com" target="_blank" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
+          ☁️ Cloudflare Dashboard (KV)
+        </a>
+      </div>
+    </div>
+
+    <!-- Бек-офіс дистриб'юторів -->
+    <div class="card">
+      <div class="card-title">🏢 Бек-офіс дистриб'юторів</div>
+      <div class="section-coming">
+        🚧 В розробці<br>
+        <span style="font-size:12px;color:var(--text3)">
+          Управління дистриб'юторами, накладні,<br>
+          підтвердження штрих-кодами — наступний етап
+        </span>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <span>© 2026 scancount.online · <a href="mailto:scancount.service@gmail.com">scancount.service@gmail.com</a></span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const ADMIN_LOGIN = 'admin';
+const ADMIN_PASS = 'admin123456';
+const WORKER_URL = 'https://scancount-barcode.scancount-service.workers.dev';
+
+function doLogin() {
+  const login = document.getElementById('loginInput').value.trim();
+  const pass = document.getElementById('passInput').value;
+  if (login === ADMIN_LOGIN && pass === ADMIN_PASS) {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('adminPage').style.display = 'flex';
+    sessionStorage.setItem('adminAuth', '1');
+    initAdmin();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('passInput').value = '';
+    document.getElementById('passInput').focus();
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('adminAuth');
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('adminPage').style.display = 'none';
+}
+
+async function initAdmin() {
+  // Дата
+  document.getElementById('currentDate').textContent = new Date().toLocaleDateString('uk-UA');
+
+  // Перевіряємо Worker
+  try {
+    const r = await fetch(WORKER_URL + '/4820016254879');
+    const d = await r.json();
+    document.getElementById('workerStatus').textContent = d.found ? '✅ Online' : '⚠️ Відповідає';
+    document.getElementById('workerStatus').style.color = d.found ? 'var(--success)' : 'var(--warn)';
+  } catch(e) {
+    document.getElementById('workerStatus').textContent = '❌ Offline';
+    document.getElementById('workerStatus').style.color = 'var(--danger)';
+  }
+
+  // Сесії (з localStorage)
+  const sessions = parseInt(localStorage.getItem('sc_sessions') || '0') + 1;
+  localStorage.setItem('sc_sessions', sessions);
+  document.getElementById('statUsers').textContent = sessions;
+}
+
+// Автологін якщо вже авторизований
+if (sessionStorage.getItem('adminAuth') === '1') {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('adminPage').style.display = 'flex';
+  initAdmin();
+}
+</script>
+</body>
+</html>
