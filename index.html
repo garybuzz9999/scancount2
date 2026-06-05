@@ -777,12 +777,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
         Увійти
       </button>
-      <button onclick="window.open('auth.html','_blank')" style="display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;background:#0f2d5a;color:#7eaadf;border:1px solid #1a4a8a;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)">
-        🔧 Інструмент для дистриб'ютора
-      </button>
-      <button onclick="testLoginDist()" style="display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;background:#2d1a00;color:#f59e0b;border:1px solid #f59e0b;border-radius:var(--radius);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)">
-        🧪 Тест-вхід
-      </button>
+
     </div>
   </div>
 
@@ -926,14 +921,8 @@
       style="width:100%;height:56px;font-size:15px;font-weight:700;background:#eafaea;border:2px solid #7ec87e;color:#1a5c1a;border-radius:var(--radius);cursor:pointer">
       ✏️ Коригуюча накладна
     </button>
-    <button onclick="openModal('shop')"
-      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#fff3e8;border:2px solid #e87a1a;color:#7a3500;border-radius:var(--radius);cursor:pointer">
-      🛒 Стати інтернет-магазином
-    </button>
-    <button onclick="openModal('courier')"
-      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#f0eafa;border:2px solid #7c3aed;color:#4a1a8a;border-radius:var(--radius);cursor:pointer">
-      🚴 Стати кур'єром
-    </button>
+    <button onclick="openModal('shop')" style="display:none">🛒 Стати інтернет-магазином</button>
+    <button onclick="openModal('courier')" style="display:none">🚴 Стати кур'єром</button>
   </div>
   </div><!-- /mainContent -->
 </main>
