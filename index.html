@@ -921,8 +921,14 @@
       style="width:100%;height:56px;font-size:15px;font-weight:700;background:#eafaea;border:2px solid #7ec87e;color:#1a5c1a;border-radius:var(--radius);cursor:pointer">
       ✏️ Коригуюча накладна
     </button>
-    <button onclick="openModal('shop')" style="display:none">🛒 Стати інтернет-магазином</button>
-    <button onclick="openModal('courier')" style="display:none">🚴 Стати кур'єром</button>
+    <button onclick="openModal('shop')"
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#fff3e8;border:2px solid #e87a1a;color:#7a3500;border-radius:var(--radius);cursor:pointer">
+      🏭 Інструмент дистриб'ютора
+    </button>
+    <button onclick="openModal('courier')"
+      style="width:100%;height:56px;font-size:15px;font-weight:700;background:#f0eafa;border:2px solid #7c3aed;color:#4a1a8a;border-radius:var(--radius);cursor:pointer">
+      📦 Як це працює для магазину
+    </button>
   </div>
   </div><!-- /mainContent -->
 </main>
@@ -1051,75 +1057,57 @@
   <!-- ІНТЕРНЕТ-МАГАЗИН -->
   <div class="modal" id="modalShop" style="display:none">
     <div class="modal-header">
-      <span class="modal-title">🛒 Стати інтернет-магазином</span>
+      <span class="modal-title">🏭 Інструмент дистриб'ютора</span>
       <button class="modal-close" onclick="closeModal()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div style="background:#fff3e8;border:1.5px solid #e87a1a;border-radius:var(--radius);padding:14px;margin-bottom:1rem;font-size:13px;color:#7a3500;line-height:1.7">
-      ✅ QR-код на вході — клієнт сканує і обирає товари<br>
-      ✅ Оплата на касі або карткою<br>
-      ✅ Доставка додому, на парковку або самовивіз<br>
-      ✅ Кур'єри вже в системі<br>
-      💰 <strong>1000 грн/міс</strong> — без комісії з продажів
+    <div style="background:#fff3e8;border:1.5px solid #e87a1a;border-radius:var(--radius);padding:14px;margin-bottom:1rem;font-size:13px;color:#7a3500;line-height:1.8">
+      Це платний функціонал для дистриб'юторів.<br><br>
+      <strong>Що отримує дистриб'ютор:</strong><br>
+      📋 Кабінет бухгалтера — управління персоналом і звітність<br>
+      👨‍💼 Кабінет товарознавця — обробка накладних і пересортування<br>
+      🚗 Кабінет експедитора — підтвердження доставок з геолокацією<br>
+      🔄 API інтеграція — накладні автоматично з вашої облікової системи<br>
+      📦 Повернення і коригування — зі смартфону в реальному часі<br><br>
+      <strong>Як це працює:</strong><br>
+      1️⃣ Дистриб'ютор підключає магазини через API<br>
+      2️⃣ Накладна формується в обліковій системі і автоматично з'являється у водія<br>
+      3️⃣ Водій сканує штрихкод, підтверджує з геолокацією<br>
+      4️⃣ Якщо є розбіжність — редагує на місці, товарознавець бачить поправки<br><br>
+      💰 Зв'яжіться з нами для підключення
     </div>
-    <div class="modal-field">
-      <label>Назва магазину</label>
-      <input id="shopName" type="text" placeholder="Магазин Петренка">
-    </div>
-    <div class="modal-field">
-      <label>Телефон</label>
-      <input id="shopPhone" type="tel" placeholder="+380 XX XXX XX XX">
-    </div>
-    <div class="modal-field">
-      <label>Місто</label>
-      <input id="shopCity" type="text" placeholder="Київ">
-    </div>
-    <div class="modal-msg" id="shopMsg"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Закрити</button>
-      <button class="btn primary" onclick="submitShop()" style="background:#e87a1a;border-color:#e87a1a">Залишити заявку</button>
+      <button class="btn primary" onclick="window.location.href='mailto:scancount.service@gmail.com?subject=Підключення дистриб\'ютора'" style="background:#e87a1a;border-color:#e87a1a">📧 Написати нам</button>
     </div>
   </div>
 
-  <!-- КУР'ЄР -->
+  <!-- ЯК ЦЕ ПРАЦЮЄ -->
   <div class="modal" id="modalCourier" style="display:none">
     <div class="modal-header">
-      <span class="modal-title">🚴 Стати кур'єром</span>
+      <span class="modal-title">📦 Як це працює для магазину</span>
       <button class="modal-close" onclick="closeModal()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div style="background:#f0eafa;border:1.5px solid #7c3aed;border-radius:var(--radius);padding:14px;margin-bottom:1rem;font-size:13px;color:#4a1a8a;line-height:1.7">
-      ✅ Працюєш де хочеш і коли хочеш<br>
-      ✅ Замовлення в радіусі на карті<br>
-      ✅ Вантажівка? Будівельний маркет — твоє поле<br>
-      ✅ Залог = твій ліміт на товар<br>
-      💰 <strong>1000 грн/міс</strong> — всі чайові твої
+    <div style="background:#f0eafa;border:1.5px solid #7c3aed;border-radius:var(--radius);padding:14px;margin-bottom:1rem;font-size:13px;color:#4a1a8a;line-height:1.8">
+      <strong>Повернення товару:</strong><br>
+      1️⃣ Ви формуєте накладну на повернення прямо тут<br>
+      2️⃣ Приїжджає водій дистриб'ютора<br>
+      3️⃣ Сканує штрихкод — система фіксує геолокацію<br>
+      4️⃣ Товарознавець отримує підтвердження одразу<br><br>
+      <strong>Приходна накладна:</strong><br>
+      1️⃣ Дистриб'ютор формує накладну у своїй системі<br>
+      2️⃣ Вона автоматично з'являється у водія на телефоні<br>
+      3️⃣ Якщо щось не збіглось — водій редагує на місці<br>
+      4️⃣ Товарознавець бачить всі зміни з поясненням<br><br>
+      <strong>Для вас це безкоштовно</strong> — платить дистриб'ютор.<br>
+      Попросіть свого дистриб'ютора підключитись до ScanCount.
     </div>
-    <div class="modal-field">
-      <label>Ім'я</label>
-      <input id="courierName" type="text" placeholder="Ваше ім'я">
-    </div>
-    <div class="modal-field">
-      <label>Телефон</label>
-      <input id="courierPhone" type="tel" placeholder="+380 XX XXX XX XX">
-    </div>
-    <div class="modal-field">
-      <label>Тип транспорту</label>
-      <select id="courierVehicle" style="width:100%;height:42px;border:1px solid var(--border2);border-radius:var(--radius);padding:0 12px;font-size:14px;background:var(--surface2);color:var(--text)">
-        <option>🚶 Пішки (до 20 кг)</option>
-        <option>🚴 Велосипед (до 30 кг)</option>
-        <option>🛵 Мотоцикл (до 50 кг)</option>
-        <option>🚗 Легковик (до 200 кг)</option>
-        <option>🚐 Мінівен (до 500 кг)</option>
-        <option>🚛 Вантажівка (до 5000 кг)</option>
-      </select>
-    </div>
-    <div class="modal-msg" id="courierMsg"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Закрити</button>
-      <button class="btn primary" onclick="submitCourier()" style="background:#7c3aed;border-color:#7c3aed">Залишити заявку</button>
+      <button class="btn primary" onclick="window.location.href='mailto:scancount.service@gmail.com?subject=Питання про ScanCount'" style="background:#7c3aed;border-color:#7c3aed">📧 Написати нам</button>
     </div>
   </div>
   <!-- ДОДАТИ СПІВРОБІТНИКА -->
