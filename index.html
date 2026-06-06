@@ -204,9 +204,9 @@
     console.log("✅ Cloudflare Worker connected");
 
     function startCameraScan() {
-      openCamScanner(function(code) {
+      window.openCamScanner(function(code) {
         document.getElementById('barcodeInput').value = code;
-        document.getElementById('okBtn').click();
+        setTimeout(function(){ document.getElementById('okBtn').click(); }, 100);
       });
     }
 
@@ -1219,6 +1219,7 @@
           <div style="font-size:11px;color:var(--text3)">Кабінет магазину</div>
         </div>
         <button onclick="goToRecount()" style="height:32px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2)">📋 Переоблік</button>
+        <button onclick="logout()" style="height:32px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--danger)">Вийти</button>
       </div>
 
       <!-- Код магазину -->
@@ -1283,7 +1284,7 @@
       </div>
 
       <!-- Зона сканування -->
-      <div onclick="openCamScanner(function(code){document.getElementById('shopScanInput').value=code;shopLoadInvoice();})" style="background:var(--surface);border:2px dashed var(--border2);border-radius:16px;padding:32px 20px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+      <div onclick="window.openCamScanner(function(code){document.getElementById('shopScanInput').value=code;shopLoadInvoice();})" style="background:var(--surface);border:2px dashed var(--border2);border-radius:16px;padding:32px 20px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
         <div style="font-size:48px;margin-bottom:12px">📷</div>
         <div style="font-size:14px;font-weight:600;color:var(--text2)">Натисніть для сканування</div>
         <div style="font-size:11px;color:var(--text3);margin-top:4px">Або введіть номер вручну нижче</div>
@@ -2023,16 +2024,16 @@
     pendingBarcode = '';
   
 // ── LIVE CAMERA SCANNER ──────────────────────────────────────────
-let _camStream = null;
 let _camReader = null;
 let _camCallback = null;
 
-async function openCamScanner(callback) {
+window.openCamScanner = async function(callback) {
   _camCallback = callback;
   const overlay = document.getElementById('camOverlay');
   overlay.style.display = 'flex';
   document.getElementById('camMsg').textContent = 'Завантаження сканера...';
   try {
+    if (_camReader) { try { _camReader.reset(); } catch(e) {} }
     const { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm');
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -2043,44 +2044,25 @@ async function openCamScanner(callback) {
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
     _camReader = new BrowserMultiFormatReader(hints);
-    _camStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    const video = document.getElementById('camVideo');
-    video.srcObject = _camStream;
-    await video.play();
     document.getElementById('camMsg').textContent = 'Наведіть камеру на штрихкод';
-    _scanLoop();
+    const result = await _camReader.decodeOnceFromConstraints(
+      { video: { facingMode: 'environment' } },
+      document.getElementById('camVideo')
+    );
+    const code = result.getText();
+    window.closeCamScanner();
+    if (_camCallback) _camCallback(code);
   } catch(e) {
-    document.getElementById('camMsg').textContent = 'Помилка камери: ' + e.message;
-    console.error(e);
-  }
-}
-
-async function _scanLoop() {
-  const video = document.getElementById('camVideo');
-  if (!_camReader || !_camStream) return;
-  try {
-    const result = await _camReader.decodeFromVideoElement(video);
-    if (result) {
-      const code = result.getText();
-      _stopCam();
-      if (_camCallback) _camCallback(code);
-      return;
+    if (e && e.name !== 'NotFoundException') {
+      document.getElementById('camMsg').textContent = 'Помилка: ' + (e.message || e);
     }
-  } catch(e) {}
-  if (_camStream) requestAnimationFrame(_scanLoop);
-}
+  }
+};
 
-function _stopCam() {
-  if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
+window.closeCamScanner = function() {
   if (_camReader) { try { _camReader.reset(); } catch(e) {} _camReader = null; }
-}
-
-function closeCamScanner() {
-  _stopCam();
   document.getElementById('camOverlay').style.display = 'none';
-}
+};
 // ────────────────────────────────────────────────────────────────
 
 
@@ -2501,7 +2483,7 @@ function closeCamScanner() {
 <div id="camOverlay" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(0,0,0,0.7)">
     <div style="color:#fff;font-size:15px;font-weight:700">📷 Сканування штрихкоду</div>
-    <button onclick="closeCamScanner()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    <button onclick="window.closeCamScanner()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
   </div>
   <div style="flex:1;position:relative;overflow:hidden">
     <video id="camVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
