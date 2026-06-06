@@ -302,7 +302,7 @@
   function renderShopDists() {
     const el = document.getElementById('shopDistList');
     if (!shopDists.length) {
-      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">Дистриб'юторів ще немає.<br>Додайте першого!</div>';
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">Дистриб\'юторів ще немає.<br>Додайте першого!</div>';
       return;
     }
     el.innerHTML = shopDists.map((d,i) => `
@@ -335,13 +335,13 @@
     const titles = {returns:'↩ Накладні на повернення', corrections:'✏️ Коригувальні накладні', incoming:'📦 Приходні накладні'};
     document.getElementById('folderTitle').textContent = titles[type];
     document.getElementById('folderSub').textContent = d.name;
-    document.getElementById('folderContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">📭 Накладних ще немає.<br>Вони з'являться після підключення до Firebase.</div>';
+    document.getElementById('folderContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">📭 Накладних ще немає.<br>Вони з\'являться після підключення до Firebase.</div>';
     document.getElementById('shopPanel').style.display = 'none';
     document.getElementById('shopFolderPanel').style.display = 'block';
   }
 
   function removeShopDist(i) {
-    if(confirm('Відключити дистриб'ютора?')) { shopDists.splice(i,1); renderShopDists(); }
+    if(confirm('Відключити дистриб\'ютора?')) { shopDists.splice(i,1); renderShopDists(); }
   }
 
   const availableDists = [
@@ -358,8 +358,8 @@
       foundDist = null;
       cnt.innerHTML = `
         <button onclick="closeShopModal()" style="float:right;background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer">✕</button>
-        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">+ Підключити дистриб'ютора</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:16px">Введіть код який надав вам дистриб'ютор</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">+ Підключити дистриб\'ютора</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px">Введіть код який надав вам дистриб\'ютор</div>
         <div style="margin-bottom:14px">
           <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Код дистриб'ютора</div>
           <input id="shopDistCodeInput" type="text" placeholder="DIST-XXXXXX"
@@ -368,7 +368,7 @@
             style="width:100%;height:52px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);padding:0 14px;font-size:16px;font-family:monospace;letter-spacing:2px;color:var(--text);outline:none">
         </div>
         <div id="shopDistPreview" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
-          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Дистриб'ютор знайдений</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Дистриб\'ютор знайдений</div>
           <div style="font-size:15px;font-weight:700;color:var(--text)" id="distPreviewName"></div>
           <div style="font-size:12px;color:var(--text2);margin-top:2px" id="distPreviewCity"></div>
         </div>
@@ -403,7 +403,7 @@
       if (dist) {
         foundDist = dist;
         msg.style.display='none';
-        document.getElementById('distPreviewName').textContent = dist.name || 'Дистриб'ютор';
+        document.getElementById('distPreviewName').textContent = dist.name || 'Дистриб\'ютор';
         document.getElementById('distPreviewCity').textContent = dist.city || '';
         preview.style.display='block';
       } else {
@@ -419,7 +419,7 @@
     const msg = document.getElementById('shopDistAddMsg');
     if (!code || code.length < 4) {
       msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626';
-      msg.textContent='Введіть код від дистриб'ютора'; return;
+      msg.textContent='Введіть код від дистриб\'ютора'; return;
     }
     if (!foundDist && window.fbCheckDistCode) {
       msg.style.display='block'; msg.style.background='#e8f0ff'; msg.style.color='#2563eb'; msg.textContent='Перевіряю...';
@@ -431,7 +431,7 @@
     }
     if (shopDists.find(d=>d.id===foundDist.id)) {
       msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626';
-      msg.textContent='Цей дистриб'ютор вже підключений'; return;
+      msg.textContent='Цей дистриб\'ютор вже підключений'; return;
     }
     // Зберігаємо код магазину в Firebase як підключення
     const shopCode = currentUser ? (currentUser.shopCode || generateShopCode()) : generateShopCode();
@@ -440,7 +440,7 @@
     }
     shopDists.push({
       id: foundDist.id,
-      name: foundDist.name || 'Дистриб'ютор',
+      name: foundDist.name || 'Дистриб\'ютор',
       city: foundDist.city || '',
       code, returns:0, corrections:0, incoming:0
     });
@@ -1125,7 +1125,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px">
       <div>
         <div style="font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">
-          🏭 <span id="distPanelName">Дистриб'ютор</span>
+          🏭 <span id="distPanelName">Дистриб\'ютор</span>
         </div>
         <div style="font-size:12px;color:var(--text2);margin-top:2px">
           Код для магазинів: <span id="distPanelCode" style="font-family:var(--mono);color:var(--accent);font-weight:700;letter-spacing:2px"></span>
@@ -1289,7 +1289,7 @@
         <button onclick="backToShopPanel()" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--text2);flex-shrink:0">←</button>
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--text)" id="folderTitle">Папка</div>
-          <div style="font-size:11px;color:var(--text3)" id="folderSub">Дистриб'ютор</div>
+          <div style="font-size:11px;color:var(--text3)" id="folderSub">Дистриб\'ютор</div>
         </div>
       </div>
       <div id="folderContent"></div>
@@ -1333,7 +1333,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div>
               <div style="font-family:monospace;font-size:12px;color:var(--text3)" id="shopInvNum">OUT-XXXXXX</div>
-              <div style="font-size:15px;font-weight:700;color:var(--text)" id="shopInvDist">Дистриб'ютор</div>
+              <div style="font-size:15px;font-weight:700;color:var(--text)" id="shopInvDist">Дистриб\'ютор</div>
               <div style="font-size:11px;color:var(--text2);margin-top:2px" id="shopInvMeta">0 позицій</div>
             </div>
             <div id="shopInvTypeBadge" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px"></div>
@@ -1581,7 +1581,7 @@
         </div>
         <div id="regTypeDist" onclick="selectRegType('distributor')" style="border:2px solid var(--border2);border-radius:var(--radius);padding:16px 12px;text-align:center;cursor:pointer;transition:all 0.15s">
           <div style="font-size:26px;margin-bottom:6px">🏭</div>
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Дистриб'ютор</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Дистриб\'ютор</div>
           <div style="font-size:11px;color:var(--text2);line-height:1.4">Кабінет, черга товарознавців, управління магазинами</div>
         </div>
       </div>
@@ -2195,10 +2195,10 @@
     document.getElementById('shopPanel').style.display = 'none';
     document.getElementById('mainContent').style.display = 'block';
     updateAccessUI();
-    const regBtn = document.querySelector('[onclick="openModal('register')"]');
-    const loginBtn = document.querySelector('[onclick="openModal('login')"]');
+    const regBtn = document.querySelector('[onclick="openModal(\'register\')"]');
+    const loginBtn = document.querySelector('[onclick="openModal(\'login\')"]');
     if(regBtn) regBtn.style.display = '';
-    if(loginBtn) loginBtn.innerHTML = \`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Увійти\`;
+    if(loginBtn) loginBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Увійти`;
   };
 
   // restoreSession більше не потрібна — Firebase onAuthStateChanged сам відновлює сесію
