@@ -69,7 +69,139 @@
       inp.click();
     }
 
-  </script>
+  
+  // ===== КАБІНЕТ МАГАЗИНУ =====
+  let shopDists = [];
+  let pendingShopDist = null;
+
+  function showShopPanel() {
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('distPanel').style.display = 'none';
+    document.getElementById('shopPanel').style.display = 'block';
+    document.getElementById('shopFolderPanel').style.display = 'none';
+    if(currentUser) {
+      document.getElementById('shopPanelName').textContent = currentUser.name || 'Мій магазин';
+      document.getElementById('shopPanelAvatar').textContent = (currentUser.name || 'М')[0].toUpperCase();
+    }
+    renderShopDists();
+  }
+
+  function backToShopPanel() {
+    document.getElementById('shopFolderPanel').style.display = 'none';
+    document.getElementById('shopPanel').style.display = 'block';
+  }
+
+  function goToRecount() {
+    document.getElementById('shopPanel').style.display = 'none';
+    document.getElementById('shopFolderPanel').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+  }
+
+  function renderShopDists() {
+    const el = document.getElementById('shopDistList');
+    if (!shopDists.length) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">Дистриб'юторів ще немає.<br>Додайте першого!</div>';
+      return;
+    }
+    el.innerHTML = shopDists.map((d,i) => `
+      <div style="margin-bottom:12px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${d.name}</div>
+            <div style="font-size:10px;color:var(--text3);font-family:monospace">${d.city} · ${d.code}</div>
+          </div>
+          <button onclick="removeShopDist(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px">×</button>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-top:none;border-radius:0 0 var(--radius) var(--radius)">
+          ${shopFolderBtn('↩','Накладні на повернення',d.returns||0,'returns',i)}
+          ${shopFolderBtn('✏️','Коригувальні накладні',d.corrections||0,'corrections',i)}
+          ${shopFolderBtn('📦','Приходні накладні',d.incoming||0,'incoming',i)}
+        </div>
+      </div>`).join('');
+  }
+
+  function shopFolderBtn(icon, title, count, type, distIdx) {
+    return `<div onclick="openShopFolder('${type}',${distIdx})" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <span style="font-size:18px">${icon}</span>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">${title}</div><div style="font-size:11px;color:var(--text3)">${count} накладних</div></div>
+      <span style="color:var(--text3);font-size:16px">›</span>
+    </div>`;
+  }
+
+  function openShopFolder(type, distIdx) {
+    const d = shopDists[distIdx];
+    const titles = {returns:'↩ Накладні на повернення', corrections:'✏️ Коригувальні накладні', incoming:'📦 Приходні накладні'};
+    document.getElementById('folderTitle').textContent = titles[type];
+    document.getElementById('folderSub').textContent = d.name;
+    document.getElementById('folderContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">📭 Накладних ще немає.<br>Вони з'являться після підключення до Firebase.</div>';
+    document.getElementById('shopPanel').style.display = 'none';
+    document.getElementById('shopFolderPanel').style.display = 'block';
+  }
+
+  function removeShopDist(i) {
+    if(confirm('Відключити дистриб'ютора?')) { shopDists.splice(i,1); renderShopDists(); }
+  }
+
+  const availableDists = [
+    {id:'dist1', name:'ТОВ Мегадіст', city:'Київ'},
+    {id:'dist2', name:'Дистрибюшн Плюс', city:'Харків'},
+    {id:'dist3', name:'УкрПостач', city:'Одеса'},
+  ];
+
+  function openShopModal(type) {
+    const overlay = document.getElementById('shopOverlay');
+    const content = document.getElementById('shopModalContent');
+    overlay.style.display = 'flex';
+    if (type === 'addDist') {
+      content.innerHTML = `
+        <button onclick="closeShopModal()" style="float:right;background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer">✕</button>
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px">+ Додати дистриб'ютора</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Оберіть зі списку та введіть код</div>
+        <div style="margin-bottom:14px" id="shopDistSelectList">
+          ${availableDists.map((d,i)=>`
+            <div onclick="selectShopDist(${i})" id="sdist-${i}" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);margin-bottom:8px">
+              <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0">🏭</div>
+              <div><div style="font-size:13px;font-weight:700;color:var(--text)">${d.name}</div><div style="font-size:11px;color:var(--text3)">${d.city}</div></div>
+            </div>`).join('')}
+        </div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Код від дистриб'ютора</div>
+          <input id="shopDistCodeInput" type="text" placeholder="XXXX-XXXX" oninput="this.value=this.value.toUpperCase()"
+            style="width:100%;height:48px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);padding:0 14px;font-size:15px;color:var(--text);outline:none">
+        </div>
+        <div id="shopDistAddMsg" style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px;display:none"></div>
+        <button onclick="submitShopDist()" style="width:100%;height:50px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">Підключити</button>
+        <button onclick="closeShopModal()" style="width:100%;height:44px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:14px;font-weight:600;cursor:pointer">Скасувати</button>`;
+    }
+  }
+
+  function selectShopDist(i) {
+    pendingShopDist = availableDists[i];
+    availableDists.forEach((_,j) => {
+      const el = document.getElementById('sdist-'+j);
+      if(el) { el.style.background=''; el.style.borderColor='var(--border)'; }
+    });
+    const el = document.getElementById('sdist-'+i);
+    if(el) { el.style.background='rgba(37,99,235,0.08)'; el.style.borderColor='var(--accent)'; }
+  }
+
+  function submitShopDist() {
+    const code = document.getElementById('shopDistCodeInput').value.trim();
+    const msg = document.getElementById('shopDistAddMsg');
+    if (!pendingShopDist) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent='Оберіть дистриб'ютора зі списку'; return; }
+    if (!code || code.length < 4) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent='Введіть код від дистриб'ютора'; return; }
+    if (shopDists.find(d=>d.id===pendingShopDist.id)) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent='Цей дистриб'ютор вже підключений'; return; }
+    shopDists.push({...pendingShopDist, code, returns:0, corrections:0, incoming:0});
+    msg.style.display='block'; msg.style.background='#d1fae5'; msg.style.color='#059669'; msg.textContent='✓ Підключено!';
+    setTimeout(()=>{ closeShopModal(); renderShopDists(); },1000);
+  }
+
+  function closeShopModal() {
+    document.getElementById('shopOverlay').style.display='none';
+    pendingShopDist = null;
+  }
+
+</script>
 
   <!-- External barcode lookup: Open Food Facts + UPC Item DB -->
   <script>
@@ -749,6 +881,57 @@
 
   </div>
 
+  <!-- КАБІНЕТ МАГАЗИНУ -->
+  <div id="shopPanel" style="display:none">
+    <div style="max-width:480px;margin:0 auto;padding:16px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+        <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;flex-shrink:0" id="shopPanelAvatar">М</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700;color:var(--text)" id="shopPanelName">Мій магазин</div>
+          <div style="font-size:11px;color:var(--text3)">Кабінет магазину</div>
+        </div>
+        <button onclick="goToRecount()" style="height:32px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2)">📋 Переоблік</button>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px">Безкоштовно назавжди <span style="font-size:9px;font-weight:800;background:#d1fae5;color:#059669;padding:2px 6px;border-radius:20px;margin-left:6px">FREE</span></div>
+
+      <button onclick="goToRecount()" style="width:100%;padding:16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;gap:14px;margin-bottom:10px;text-align:left">
+        <div style="width:44px;height:44px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📋</div>
+        <div><div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">Переоблік</div><div style="font-size:11px;color:var(--text2)">Сканування та підрахунок товарів</div></div>
+      </button>
+
+      <button onclick="window.location.href='price-tags.html'" style="width:100%;padding:16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;gap:14px;margin-bottom:16px;text-align:left">
+        <div style="width:44px;height:44px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🏷️</div>
+        <div><div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">Друк цінників</div><div style="font-size:11px;color:var(--text2)">Формат 58×40мм, до 24 шт на аркуші</div></div>
+      </button>
+
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px">Мої дистриб'ютори <span style="font-size:9px;font-weight:800;background:#fef3c7;color:#d97706;padding:2px 6px;border-radius:20px;margin-left:6px">PRO</span></div>
+
+      <div id="shopDistList"></div>
+
+      <button onclick="openShopModal('addDist')" style="width:100%;padding:14px;border-radius:var(--radius);border:2px dashed var(--border2);background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:var(--text3);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px">+ Додати дистриб'ютора</button>
+    </div>
+  </div>
+
+  <!-- ПАПКА ДИСТРИБ'ЮТОРА -->
+  <div id="shopFolderPanel" style="display:none">
+    <div style="max-width:480px;margin:0 auto;padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <button onclick="backToShopPanel()" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--text2);flex-shrink:0">←</button>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)" id="folderTitle">Папка</div>
+          <div style="font-size:11px;color:var(--text3)" id="folderSub">Дистриб'ютор</div>
+        </div>
+      </div>
+      <div id="folderContent"></div>
+    </div>
+  </div>
+
+  <!-- OVERLAY КАБІНЕТУ -->
+  <div id="shopOverlay" onclick="if(event.target===this)closeShopModal()" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:none;align-items:flex-end;justify-content:center">
+    <div id="shopModalContent" style="background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:24px;max-height:85vh;overflow-y:auto"></div>
+  </div>
+
   <!-- ОСНОВНИЙ КОНТЕНТ (переоблік) -->
   <div id="mainContent">
 
@@ -985,11 +1168,7 @@
         <label>Ім'я власника</label>
         <input id="rShopOwner" type="text" placeholder="Ваше ім'я">
       </div>
-      <div class="modal-field">
-        <label>Код дистриб'ютора <span style="color:var(--text3);font-weight:400">(необов'язково)</span></label>
-        <input id="rShopCode" type="text" placeholder="DIST-XXXX — якщо є" style="font-family:var(--mono);letter-spacing:2px;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Без коду доступний тільки переоблік</div>
-      </div>
+
       <div class="modal-msg" id="rShopMsg"></div>
       <div class="modal-actions">
         <button class="btn" onclick="selectRegType(null)">← Назад</button>
@@ -1541,6 +1720,9 @@
     updateAccessUI();
     if(user && user.type === 'distributor') {
       setTimeout(() => showDistPanel(), 300);
+    }
+    if(user && user.type === 'shop') {
+      setTimeout(() => showShopPanel(), 300);
     }
   }
 
@@ -2391,13 +2573,13 @@
     if(!phone) return showModalMsg('rShopMsg','err','📌 Телефон обов\'язковий — це ваш підпис на документах');
     if(!email || !email.includes('@')) return showModalMsg('rShopMsg','err','🔑 Введіть коректний email для входу');
     if(!name)  return showModalMsg('rShopMsg','err','Введіть назву магазину');
-    const hasCode = code.length > 0;
+    const hasCode = false;
     showModalMsg('rShopMsg','ok',
       hasCode
         ? '✓ Зареєстровано! Підключено до дистриб\'ютора ' + code + '. Всі функції активні!'
         : '✓ Зареєстровано! Доступний переоблік. Введіть код дистриб\'ютора для накладних.'
     );
-    setUser({ type:'shop', name: name || owner || phone, email, phone, distCode: code || null, hasDistAccess: hasCode });
+    setUser({ type:'shop', name: name || owner || phone, email, phone, distCode: null, hasDistAccess: false });
     setTimeout(() => closeModal(), 2000);
   }
 
