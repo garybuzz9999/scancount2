@@ -179,9 +179,9 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
 .footer-copy{font-family:var(--mono);font-size:10px;color:#444;letter-spacing:1px}
 
 @media(max-width:768px){
-  .layout{display:block!important;margin-top:92px;grid-template-columns:none!important;width:100%!important}
-  .sidebar{display:none!important;width:0!important}
-  .content{padding:24px 16px!important;max-width:100%!important;width:100%!important}
+  .layout{grid-template-columns:1fr!important;margin-top:92px}
+  .sidebar{display:none!important}
+  .content{padding:24px 16px;max-width:100%;width:100%}
   .hero{padding:110px 24px 48px}
   .role-grid{grid-template-columns:1fr}
   .role-card:nth-child(odd){border-right:none}
