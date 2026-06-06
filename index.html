@@ -1419,24 +1419,29 @@
         🏪 Реєстрація магазину — переоблік безкоштовно назавжди
       </div>
       <div class="modal-field">
-        <label>Телефон <span style="color:var(--danger)">*</span></label>
-        <input id="rShopPhone" type="tel" placeholder="+380 XX XXX XX XX" style="font-size:16px;font-weight:600">
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">📌 Буде вашим підписом на всіх документах</div>
-      </div>
-      <div class="modal-field">
-        <label>Email <span style="color:var(--danger)">*</span></label>
-        <input id="rShopEmail" type="email" placeholder="example@mail.com">
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">🔑 Для входу через Magic Link</div>
-      </div>
-      <div class="modal-field">
         <label>Назва магазину <span style="color:var(--danger)">*</span></label>
         <input id="rShopName" type="text" placeholder="Продукти Петренка">
       </div>
       <div class="modal-field">
-        <label>Ім'я власника</label>
-        <input id="rShopOwner" type="text" placeholder="Ваше ім'я">
+        <label>Телефон <span style="color:var(--danger)">*</span></label>
+        <input id="rShopPhone" type="tel" placeholder="+380 XX XXX XX XX">
       </div>
-
+      <div class="modal-field">
+        <label>Ім'я власника <span style="color:var(--danger)">*</span></label>
+        <input id="rShopOwner" type="text" placeholder="Ваше ім'я та прізвище">
+      </div>
+      <div class="modal-field">
+        <label>Email <span style="color:var(--danger)">*</span></label>
+        <input id="rShopEmail" type="email" placeholder="example@mail.com" autocomplete="email">
+      </div>
+      <div class="modal-field">
+        <label>Пароль <span style="color:var(--danger)">*</span></label>
+        <input id="rShopPass" type="password" placeholder="Мінімум 6 символів" autocomplete="new-password">
+      </div>
+      <div class="modal-field">
+        <label>Повтор пароля <span style="color:var(--danger)">*</span></label>
+        <input id="rShopPass2" type="password" placeholder="Введіть пароль ще раз" autocomplete="new-password">
+      </div>
       <div class="modal-msg" id="rShopMsg"></div>
       <div class="modal-actions">
         <button class="btn" onclick="selectRegType(null)">← Назад</button>
@@ -1450,22 +1455,28 @@
         🏭 <strong>14 днів безкоштовно</strong> — потім 1500 грн/міс + 100 грн за кожен магазин. Картка не потрібна.
       </div>
       <div class="modal-field">
-        <label>Телефон <span style="color:var(--danger)">*</span></label>
-        <input id="rDistPhone" type="tel" placeholder="+380 XX XXX XX XX" style="font-size:16px;font-weight:600">
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">📌 Основний ідентифікатор в системі</div>
-      </div>
-      <div class="modal-field">
-        <label>Email <span style="color:var(--danger)">*</span></label>
-        <input id="rDistEmail" type="email" placeholder="example@company.ua">
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">🔑 Для входу через Magic Link</div>
-      </div>
-      <div class="modal-field">
         <label>Назва компанії <span style="color:var(--danger)">*</span></label>
         <input id="rDistName" type="text" placeholder="ТОВ Дистриб'ютор Плюс">
       </div>
       <div class="modal-field">
-        <label>Контактна особа</label>
+        <label>Контактна особа <span style="color:var(--danger)">*</span></label>
         <input id="rDistContact" type="text" placeholder="Ваше ім'я та прізвище">
+      </div>
+      <div class="modal-field">
+        <label>Телефон <span style="color:var(--danger)">*</span></label>
+        <input id="rDistPhone" type="tel" placeholder="+380 XX XXX XX XX">
+      </div>
+      <div class="modal-field">
+        <label>Email <span style="color:var(--danger)">*</span></label>
+        <input id="rDistEmail" type="email" placeholder="example@company.ua" autocomplete="email">
+      </div>
+      <div class="modal-field">
+        <label>Пароль <span style="color:var(--danger)">*</span></label>
+        <input id="rDistPass" type="password" placeholder="Мінімум 6 символів" autocomplete="new-password">
+      </div>
+      <div class="modal-field">
+        <label>Повтор пароля <span style="color:var(--danger)">*</span></label>
+        <input id="rDistPass2" type="password" placeholder="Введіть пароль ще раз" autocomplete="new-password">
       </div>
       <div class="modal-msg" id="rDistMsg"></div>
       <div class="modal-actions">
@@ -1486,12 +1497,14 @@
       </button>
     </div>
     <div class="modal-field">
-      <label>Email</label>
-      <input id="lEmail" type="email" placeholder="example@mail.com" autocomplete="email">
+      <label>Email <span style="color:var(--danger)">*</span></label>
+      <input id="lEmail" type="email" placeholder="example@mail.com" autocomplete="email"
+        onkeydown="if(event.key==='Enter')document.getElementById('lPass').focus()">
     </div>
     <div class="modal-field">
-      <label>Пароль</label>
-      <input id="lPass" type="password" placeholder="Ваш пароль" autocomplete="current-password">
+      <label>Пароль <span style="color:var(--danger)">*</span></label>
+      <input id="lPass" type="password" placeholder="Ваш пароль" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')submitLogin()">
     </div>
     <div class="modal-msg" id="lMsg"></div>
     <div class="modal-actions">
@@ -2833,35 +2846,39 @@
   }
 
   function submitRegShop() {
-    const phone = document.getElementById('rShopPhone').value.trim();
-    const email = document.getElementById('rShopEmail').value.trim();
     const name  = document.getElementById('rShopName').value.trim();
+    const phone = document.getElementById('rShopPhone').value.trim();
     const owner = document.getElementById('rShopOwner').value.trim();
-    const code  = document.getElementById('rShopCode').value.trim();
-    if(!phone) return showModalMsg('rShopMsg','err','📌 Телефон обов\'язковий — це ваш підпис на документах');
-    if(!email || !email.includes('@')) return showModalMsg('rShopMsg','err','🔑 Введіть коректний email для входу');
+    const email = document.getElementById('rShopEmail').value.trim();
+    const pass  = document.getElementById('rShopPass').value;
+    const pass2 = document.getElementById('rShopPass2').value;
     if(!name)  return showModalMsg('rShopMsg','err','Введіть назву магазину');
-    const hasCode = false;
-    showModalMsg('rShopMsg','ok',
-      hasCode
-        ? '✓ Зареєстровано! Підключено до дистриб\'ютора ' + code + '. Всі функції активні!'
-        : '✓ Зареєстровано! Доступний переоблік. Введіть код дистриб\'ютора для накладних.'
-    );
-    setUser({ type:'shop', name: name || owner || phone, email, phone, distCode: null, hasDistAccess: false });
-    setTimeout(() => closeModal(), 2000);
+    if(!phone) return showModalMsg('rShopMsg','err','Введіть телефон');
+    if(!owner) return showModalMsg('rShopMsg','err','Введіть ім\'я власника');
+    if(!email || !email.includes('@')) return showModalMsg('rShopMsg','err','Введіть коректний email');
+    if(!pass || pass.length < 6) return showModalMsg('rShopMsg','err','Пароль мінімум 6 символів');
+    if(pass !== pass2) return showModalMsg('rShopMsg','err','Паролі не співпадають');
+    showModalMsg('rShopMsg','ok','✓ Зареєстровано! Доступний переоблік і цінники.');
+    setUser({ type:'shop', name: name, email, phone, owner, distCode: null, hasDistAccess: false });
+    setTimeout(() => closeModal(), 1800);
   }
 
   function submitRegDist() {
-    const phone   = document.getElementById('rDistPhone').value.trim();
-    const email   = document.getElementById('rDistEmail').value.trim();
     const name    = document.getElementById('rDistName').value.trim();
     const contact = document.getElementById('rDistContact').value.trim();
-    if(!phone)   return showModalMsg('rDistMsg','err','📌 Телефон обов\'язковий — це основний ідентифікатор');
-    if(!email || !email.includes('@')) return showModalMsg('rDistMsg','err','🔑 Введіть коректний email для входу');
+    const phone   = document.getElementById('rDistPhone').value.trim();
+    const email   = document.getElementById('rDistEmail').value.trim();
+    const pass    = document.getElementById('rDistPass').value;
+    const pass2   = document.getElementById('rDistPass2').value;
     if(!name)    return showModalMsg('rDistMsg','err','Введіть назву компанії');
-    const distCode = 'DIST-' + Math.random().toString(36).substr(2,4).toUpperCase();
-    showModalMsg('rDistMsg','ok','✓ Зареєстровано! Пробний період 14 днів. Ваш код для магазинів: ' + distCode);
-    setUser({ type:'distributor', name: name, email, phone, distCode, hasDistAccess: true });
+    if(!contact) return showModalMsg('rDistMsg','err','Введіть контактну особу');
+    if(!phone)   return showModalMsg('rDistMsg','err','Введіть телефон');
+    if(!email || !email.includes('@')) return showModalMsg('rDistMsg','err','Введіть коректний email');
+    if(!pass || pass.length < 6) return showModalMsg('rDistMsg','err','Пароль мінімум 6 символів');
+    if(pass !== pass2) return showModalMsg('rDistMsg','err','Паролі не співпадають');
+    const distCode = 'DIST-' + Math.random().toString(36).substr(2,6).toUpperCase();
+    showModalMsg('rDistMsg','ok','✓ Зареєстровано! 14 днів безкоштовно. Ваш код: ' + distCode);
+    setUser({ type:'distributor', name: name, email, phone, contact, distCode, hasDistAccess: true });
     setTimeout(() => closeModal(), 2500);
   }
 
@@ -2872,8 +2889,18 @@
   }
 
   function submitLogin() {
-    // ТЕСТОВИЙ РЕЖИМ — без перевірок
-    showModalMsg('lMsg','ok','✓ Тестовий режим: вхід успішний!');
+    const email = document.getElementById('lEmail').value.trim();
+    const pass  = document.getElementById('lPass').value;
+    if(!email || !email.includes('@')) return showModalMsg('lMsg','err','Введіть коректний email');
+    if(!pass) return showModalMsg('lMsg','err','Введіть пароль');
+    // Тестовий вхід — магазин або дистриб'ютор
+    if(email.includes('dist') || email.includes('company')) {
+      showModalMsg('lMsg','ok','✓ Вхід успішний!');
+      setUser({ type:'distributor', name: 'Дистриб\'ютор', email, distCode: 'DIST-TEST01', hasDistAccess: true });
+    } else {
+      showModalMsg('lMsg','ok','✓ Вхід успішний!');
+      setUser({ type:'shop', name: 'Мій магазин', email, distCode: null, hasDistAccess: false });
+    }
     setTimeout(() => closeModal(), 1500);
   }
 
