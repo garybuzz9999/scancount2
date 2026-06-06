@@ -446,6 +446,85 @@ tbody tr:hover td{background:var(--surface2)}
     };
 
   </script>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, doc, setDoc, query, where, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",
+      authDomain: "scancount-b39ed.firebaseapp.com",
+      projectId: "scancount-b39ed",
+      storageBucket: "scancount-b39ed.firebasestorage.app",
+      messagingSenderId: "725968441059",
+      appId: "1:725968441059:web:52578672a121f80c22bfd6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Зберегти/оновити реквізити дистриб'ютора
+    window.fbSaveRequisites = async function(data, existingId) {
+      try {
+        if (existingId) {
+          await setDoc(doc(db, "distributors", existingId), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+          return existingId;
+        } else {
+          const ref = await addDoc(collection(db, "distributors"), { ...data, createdAt: serverTimestamp() });
+          return ref.id;
+        }
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Зберегти співробітника
+    window.fbAddStaff = async function(data) {
+      try {
+        const ref = await addDoc(collection(db, "staff"), { ...data, createdAt: serverTimestamp() });
+        return ref.id;
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Перевірити код входу співробітника
+    window.fbCheckCode = async function(code) {
+      try {
+        const q = query(collection(db, "staff"), where("code", "==", code), where("active", "==", true));
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        return { id: snap.docs[0].id, ...snap.docs[0].data() };
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Завантажити накладну по номеру
+    window.fbLoadInvoice = async function(num) {
+      try {
+        const q = query(collection(db, "invoices"), where("num", "==", num));
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        return { id: snap.docs[0].id, ...snap.docs[0].data() };
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Підтвердити повернення з геолокацією
+    window.fbConfirmReturn = async function(invoiceId, lat, lng) {
+      try {
+        await updateDoc(doc(db, "invoices", invoiceId), {
+          status: "confirmed", confirmedAt: serverTimestamp(), geo: { lat, lng }
+        });
+        return true;
+      } catch(e) { console.error(e); return false; }
+    };
+
+    // Відправити коригування
+    window.fbSendCorrections = async function(invoiceId, items, lat, lng) {
+      try {
+        await updateDoc(doc(db, "invoices", invoiceId), {
+          status: "corrected", correctedItems: items, correctedAt: serverTimestamp(), geo: { lat, lng }
+        });
+        return true;
+      } catch(e) { console.error(e); return false; }
+    };
+
+  </script>
 </head>
 <body>
 
@@ -699,23 +778,95 @@ tbody tr:hover td{background:var(--surface2)}
       </div>
       <!-- SETTINGS -->
       <div class="page" id="buh-settings">
-        <div class="card" style="max-width:520px">
-          <div class="card-header"><span class="card-title">Профіль компанії</span></div>
-          <div style="padding:20px">
-            <div class="modal-field"><label>Назва компанії</label><input value="ТОВ Дистрибюшн Плюс"></div>
-            <div class="modal-field"><label>Email</label><input value="buh@company.ua"></div>
-            <button class="btn primary" onclick="alert('Збережено!')">Зберегти</button>
+
+        <!-- Реквізити компанії -->
+        <div class="card" style="max-width:600px">
+          <div class="card-header">
+            <span class="card-title">📋 Реквізити компанії</span>
+            <span class="card-sub">Відображаються в накладних і доступні магазинам</span>
           </div>
-        </div>
-        <div class="card" style="max-width:520px">
-          <div class="card-header"><span class="card-title">API ключ</span></div>
-          <div style="padding:20px">
-            <div class="code-box">
-              <div class="code-val">sk_live_dist_x2k9m4n7p1q3r8s5t6</div>
-              <button class="code-copy" onclick="navigator.clipboard.writeText('sk_live_dist_x2k9m4n7p1q3r8s5t6');this.textContent='✓';setTimeout(()=>this.textContent='Копіювати',2000)">Копіювати</button>
+          <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px" id="reqForm">
+            <div class="modal-field" style="grid-column:1/-1">
+              <label>Повна назва компанії</label>
+              <input id="req_name" placeholder="ТОВ Назва Компанії">
+            </div>
+            <div class="modal-field">
+              <label>ЄДРПОУ</label>
+              <input id="req_edrpou" placeholder="12345678" type="number">
+            </div>
+            <div class="modal-field">
+              <label>ІПН / ПДВ</label>
+              <input id="req_ipn" placeholder="123456789012">
+            </div>
+            <div class="modal-field" style="grid-column:1/-1">
+              <label>Юридична адреса</label>
+              <input id="req_address" placeholder="м. Київ, вул. Хрещатик, 1">
+            </div>
+            <div class="modal-field" style="grid-column:1/-1">
+              <label>Банк</label>
+              <input id="req_bank" placeholder="АТ КБ ПриватБанк">
+            </div>
+            <div class="modal-field" style="grid-column:1/-1">
+              <label>IBAN (розрахунковий рахунок)</label>
+              <input id="req_iban" placeholder="UA123456789012345678901234567" style="font-family:monospace;letter-spacing:1px">
+            </div>
+            <div class="modal-field">
+              <label>МФО</label>
+              <input id="req_mfo" placeholder="305299">
+            </div>
+            <div class="modal-field">
+              <label>Телефон</label>
+              <input id="req_phone" placeholder="+380 44 123 45 67" type="tel">
+            </div>
+            <div class="modal-field">
+              <label>Email</label>
+              <input id="req_email" placeholder="info@company.ua" type="email">
+            </div>
+            <div class="modal-field">
+              <label>Місто</label>
+              <input id="req_city" placeholder="Київ">
+            </div>
+            <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center">
+              <button class="btn primary lg" onclick="saveRequisites()">💾 Зберегти реквізити</button>
+              <span id="reqSaveMsg" style="font-size:12px;color:var(--green);display:none">✓ Збережено!</span>
             </div>
           </div>
         </div>
+
+        <!-- Код для магазинів -->
+        <div class="card" style="max-width:600px">
+          <div class="card-header">
+            <span class="card-title">🔑 Код для підключення магазинів</span>
+            <span class="card-sub">Надайте цей код магазину — він введе його в кабінеті</span>
+          </div>
+          <div style="padding:20px">
+            <div class="code-box" style="margin-bottom:12px">
+              <div class="code-val" id="distCodeDisplay">DIST-XXXXXX</div>
+              <button class="code-copy" onclick="copyDistCode()">Копіювати</button>
+              <button class="code-copy" onclick="regenDistCode()">Оновити</button>
+            </div>
+            <div style="font-size:12px;color:var(--text3)">
+              Після введення цього коду магазин автоматично отримає ваші реквізити і доступ до накладних
+            </div>
+          </div>
+        </div>
+
+        <!-- API ключ -->
+        <div class="card" style="max-width:600px">
+          <div class="card-header"><span class="card-title">⚙️ API ключ для інтеграцій</span></div>
+          <div style="padding:20px">
+            <div class="code-box">
+              <div class="code-val" id="apiKeyDisplay">sk_live_xxxxxxxxxxxxxxxx</div>
+              <button class="code-copy" onclick="copyApiKey()">Копіювати</button>
+            </div>
+            <div style="font-size:11px;color:var(--text3);font-family:monospace;background:var(--surface2);padding:10px 12px;border-radius:8px;margin-top:12px;line-height:1.9">
+              POST api.scancount.online/v1/invoices<br>
+              POST api.scancount.online/v1/returns<br>
+              GET  api.scancount.online/v1/status/{id}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1424,6 +1575,83 @@ function closeModal(id) {
   document.getElementById('overlay-'+id).classList.remove('show');
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show')); });
+
+  // ===== РЕКВІЗИТИ =====
+  let distCode = 'DIST-' + Math.random().toString(36).substr(2,6).toUpperCase();
+  let apiKey = 'sk_live_' + Math.random().toString(36).substr(2,16);
+  let distFirebaseId = null;
+
+  function initSettingsUI() {
+    document.getElementById('distCodeDisplay').textContent = distCode;
+    document.getElementById('apiKeyDisplay').textContent = apiKey;
+  }
+
+  async function saveRequisites() {
+    const data = {
+      name:    document.getElementById('req_name').value.trim(),
+      edrpou:  document.getElementById('req_edrpou').value.trim(),
+      ipn:     document.getElementById('req_ipn').value.trim(),
+      address: document.getElementById('req_address').value.trim(),
+      bank:    document.getElementById('req_bank').value.trim(),
+      iban:    document.getElementById('req_iban').value.trim(),
+      mfo:     document.getElementById('req_mfo').value.trim(),
+      phone:   document.getElementById('req_phone').value.trim(),
+      email:   document.getElementById('req_email').value.trim(),
+      city:    document.getElementById('req_city').value.trim(),
+      distCode,
+      apiKey,
+      active: true
+    };
+
+    if (!data.name) { alert('Введіть назву компанії'); return; }
+
+    if (window.fbSaveRequisites) {
+      const id = await window.fbSaveRequisites(data, distFirebaseId);
+      if (id) distFirebaseId = id;
+    }
+
+    // Зберігаємо локально
+    localStorage.setItem('distRequisites', JSON.stringify(data));
+    const msg = document.getElementById('reqSaveMsg');
+    msg.style.display = 'block';
+    setTimeout(()=>msg.style.display='none', 3000);
+  }
+
+  function loadSavedRequisites() {
+    const saved = localStorage.getItem('distRequisites');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.distCode) { distCode = data.distCode; }
+    if (data.apiKey) { apiKey = data.apiKey; }
+    const fields = ['name','edrpou','ipn','address','bank','iban','mfo','phone','email','city'];
+    fields.forEach(f => {
+      const el = document.getElementById('req_'+f);
+      if (el && data[f]) el.value = data[f];
+    });
+    initSettingsUI();
+  }
+
+  function copyDistCode() {
+    navigator.clipboard.writeText(distCode);
+    event.target.textContent='✓';
+    setTimeout(()=>event.target.textContent='Копіювати',2000);
+  }
+
+  function copyApiKey() {
+    navigator.clipboard.writeText(apiKey);
+    event.target.textContent='✓';
+    setTimeout(()=>event.target.textContent='Копіювати',2000);
+  }
+
+  function regenDistCode() {
+    if (!confirm('Оновити код? Магазини зі старим кодом втратять підключення.')) return;
+    distCode = 'DIST-' + Math.random().toString(36).substr(2,6).toUpperCase();
+    document.getElementById('distCodeDisplay').textContent = distCode;
+  }
+
+  // Завантажуємо реквізити при старті
+  loadSavedRequisites();
+
 </script>
 </body>
 </html>
