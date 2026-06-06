@@ -1182,9 +1182,14 @@ window.closeCamScanner = function() {
           &nbsp;·&nbsp; <span id="distTrialInfo" style="color:var(--warn);font-weight:600"></span>
         </div>
       </div>
-      <button onclick="logout()" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;background:var(--danger-bg);border:1px solid var(--danger);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--danger);cursor:pointer">
-        Вийти
-      </button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a href="app.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:none">
+          📱 Кабінет персоналу
+        </a>
+        <button onclick="logout()" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;background:var(--danger-bg);border:1px solid var(--danger);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--danger);cursor:pointer">
+          Вийти
+        </button>
+      </div>
     </div>
 
     <!-- Вкладки -->
