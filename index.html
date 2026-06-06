@@ -6,6 +6,173 @@
   <title>Переоблік</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase Auth SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged,
+      updateProfile
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+      collection,
+      query,
+      where,
+      getDocs
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    // ── FIREBASE CONFIG ── замінити на свій проект
+    const firebaseConfig = {
+      apiKey:            "YOUR_API_KEY",
+      authDomain:        "YOUR_PROJECT.firebaseapp.com",
+      projectId:         "YOUR_PROJECT_ID",
+      storageBucket:     "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId:             "YOUR_APP_ID"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    // ── HELPERS ──────────────────────────────────────────────────
+
+    function generateCode(prefix) {
+      return prefix + '-' + Math.random().toString(36).substr(2,6).toUpperCase();
+    }
+
+    // Зберігаємо профіль користувача у Firestore
+    async function saveUserProfile(uid, data) {
+      await setDoc(doc(db, 'users', uid), data, { merge: true });
+    }
+
+    // Читаємо профіль користувача з Firestore
+    async function getUserProfile(uid) {
+      const snap = await getDoc(doc(db, 'users', uid));
+      return snap.exists() ? snap.data() : null;
+    }
+
+    // Перевірка коду дистриб'ютора у Firestore
+    window.fbCheckDistCode = async function(code) {
+      try {
+        const q = query(collection(db, 'users'), where('distCode','==',code), where('type','==','distributor'));
+        const snap = await getDocs(q);
+        if(snap.empty) return null;
+        const d = snap.docs[0].data();
+        return { id: snap.docs[0].id, name: d.name, city: d.city || '' };
+      } catch(e) { console.error('fbCheckDistCode:', e); return null; }
+    };
+
+    // Збереження з'єднання магазин ↔ дистриб'ютор
+    window.fbSaveShopConnection = async function(distUid, shopCode, shopUser) {
+      try {
+        const uid = auth.currentUser?.uid;
+        if(!uid) return;
+        await setDoc(doc(db, 'connections', uid + '_' + distUid), {
+          shopUid: uid, shopCode, distUid,
+          shopName: shopUser?.name || '',
+          createdAt: new Date().toISOString()
+        });
+      } catch(e) { console.error('fbSaveShopConnection:', e); }
+    };
+
+    // ── AUTH STATE LISTENER ──────────────────────────────────────
+    onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Завантажуємо профіль з Firestore
+        const profile = await getUserProfile(firebaseUser.uid);
+        if (profile) {
+          window._setUserFromAuth(profile);
+        } else {
+          // Профілю немає — виходимо (edge case)
+          await signOut(auth);
+        }
+      } else {
+        // Не залогінений — скидаємо UI
+        window._clearUserFromAuth();
+      }
+    });
+
+    // ── РЕЄСТРАЦІЯ МАГАЗИНУ ──────────────────────────────────────
+    window.fbRegisterShop = async function(name, phone, owner, email, pass) {
+      const msgId = 'rShopMsg';
+      try {
+        showModalMsg(msgId, 'ok', 'Реєструємо...');
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(cred.user, { displayName: name });
+        const shopCode = generateCode('SHOP');
+        const profile = { type:'shop', name, email, phone, owner, shopCode,
+                          distCode: null, hasDistAccess: false, uid: cred.user.uid };
+        await saveUserProfile(cred.user.uid, profile);
+        showModalMsg(msgId, 'ok', '✓ Зареєстровано! Доступний переоблік і цінники.');
+        setTimeout(() => closeModal(), 1800);
+      } catch(e) {
+        const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
+                  : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
+                  : e.message;
+        showModalMsg(msgId, 'err', msg);
+      }
+    };
+
+    // ── РЕЄСТРАЦІЯ ДИСТРИБ'ЮТОРА ────────────────────────────────
+    window.fbRegisterDist = async function(name, contact, phone, email, pass, city) {
+      const msgId = 'rDistMsg';
+      try {
+        showModalMsg(msgId, 'ok', 'Реєструємо...');
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(cred.user, { displayName: name });
+        const distCode = generateCode('DIST');
+        const profile = { type:'distributor', name, email, phone, contact, city: city||'',
+                          distCode, hasDistAccess: true, uid: cred.user.uid };
+        await saveUserProfile(cred.user.uid, profile);
+        showModalMsg(msgId, 'ok', '✓ Зареєстровано! 14 днів безкоштовно. Ваш код: ' + distCode);
+        setTimeout(() => closeModal(), 2500);
+      } catch(e) {
+        const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
+                  : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
+                  : e.message;
+        showModalMsg(msgId, 'err', msg);
+      }
+    };
+
+    // ── ВХІД ────────────────────────────────────────────────────
+    window.fbLogin = async function(email, pass) {
+      try {
+        showModalMsg('lMsg', 'ok', 'Входимо...');
+        await signInWithEmailAndPassword(auth, email, pass);
+        showModalMsg('lMsg', 'ok', '✓ Вхід успішний!');
+        setTimeout(() => closeModal(), 1200);
+      } catch(e) {
+        const msg = e.code === 'auth/user-not-found'  ? 'Акаунт не знайдено'
+                  : e.code === 'auth/wrong-password'  ? 'Невірний пароль'
+                  : e.code === 'auth/invalid-credential' ? 'Невірний email або пароль'
+                  : e.message;
+        showModalMsg('lMsg', 'err', msg);
+      }
+    };
+
+    // ── ОНОВЛЕННЯ SHOP CODE ────────────────────────────────────
+    window.fbUpdateShopCode = async function(shopCode) {
+      try {
+        const uid = auth.currentUser?.uid;
+        if(uid) await saveUserProfile(uid, { shopCode });
+      } catch(e) { console.error('fbUpdateShopCode:', e); }
+    };
+
+    // ── ВИХІД ───────────────────────────────────────────────────
+    window.fbLogout = async function() {
+      await signOut(auth);
+    };
+  </script>
+
   <!-- Cloudflare Worker -->
   <script>
     const WORKER_URL = 'https://scancount-barcode.scancount-service.workers.dev';
@@ -71,11 +238,8 @@
 
   
   // ===== КАБІНЕТ МАГАЗИНУ =====
+  // shopDists тепер зберігається у Firestore (завантажується після логіну через _setUserFromAuth)
   let shopDists = [];
-  try {
-    const savedDists = localStorage.getItem('sc_shop_dists');
-    if(savedDists) shopDists = JSON.parse(savedDists);
-  } catch(e) {}
   let pendingShopDist = null;
 
   function showShopPanel() {
@@ -89,8 +253,10 @@
       document.getElementById('shopPanelName').textContent = currentUser.name || 'Мій магазин';
       document.getElementById('shopPanelAvatar').textContent = (currentUser.name || 'М')[0].toUpperCase();
       if (!currentUser.shopCode) {
+        // shopCode вже є в Firestore профілі — якщо порожній, це edge case
         currentUser.shopCode = generateShopCode();
-        localStorage.setItem('sc_user', JSON.stringify(currentUser));
+        // Зберігаємо оновлений код у Firestore якщо можливо
+        if(typeof window.fbUpdateShopCode === 'function') window.fbUpdateShopCode(currentUser.shopCode);
       }
       // Показуємо код магазину
       document.getElementById('shopCodeDisplay').textContent = currentUser.shopCode;
@@ -2005,10 +2171,9 @@
   let currentUser = null; // null = не авторизований
   // Структура: { type: 'shop'|'distributor', name, email, phone, distCode, hasDistAccess }
 
+  // ── setUser: викликається з Firebase onAuthStateChanged ──
   function setUser(user) {
     currentUser = user;
-    if(user) localStorage.setItem('sc_user', JSON.stringify(user));
-    else localStorage.removeItem('sc_user');
     updateAccessUI();
     if(user && user.type === 'distributor') {
       setTimeout(() => showDistPanel(), 300);
@@ -2018,18 +2183,27 @@
     }
   }
 
-  // Відновлюємо сесію при завантаженні
+  // Викликається з Firebase module коли користувач залогінений
+  window._setUserFromAuth = function(profile) {
+    setUser(profile);
+  };
+
+  // Викликається з Firebase module коли користувач вийшов
+  window._clearUserFromAuth = function() {
+    currentUser = null;
+    document.getElementById('distPanel').style.display = 'none';
+    document.getElementById('shopPanel').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    updateAccessUI();
+    const regBtn = document.querySelector('[onclick="openModal('register')"]');
+    const loginBtn = document.querySelector('[onclick="openModal('login')"]');
+    if(regBtn) regBtn.style.display = '';
+    if(loginBtn) loginBtn.innerHTML = \`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Увійти\`;
+  };
+
+  // restoreSession більше не потрібна — Firebase onAuthStateChanged сам відновлює сесію
   function restoreSession() {
-    try {
-      const saved = localStorage.getItem('sc_user');
-      if(saved) {
-        const user = JSON.parse(saved);
-        currentUser = user;
-        updateAccessUI();
-        if(user.type === 'distributor') showDistPanel();
-        if(user.type === 'shop') showShopPanel();
-      }
-    } catch(e) {}
+    // Handled by Firebase onAuthStateChanged in the module script
   }
 
   function hasDistAccess() {
@@ -2728,15 +2902,7 @@
 
   function logout() {
     if(confirm('Вийти з акаунту?')) {
-      currentUser = null;
-      document.getElementById('distPanel').style.display = 'none';
-      document.getElementById('mainContent').style.display = 'block';
-      // Відновлюємо кнопки
-      const regBtn = document.querySelector('[onclick="openModal(\'register\')"]');
-      const loginBtn = document.querySelector('[onclick="openModal(\'login\')"]');
-      if(regBtn) regBtn.style.display = '';
-      if(loginBtn) { loginBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Увійти`; }
-      updateAccessUI();
+      if(typeof window.fbLogout === 'function') window.fbLogout();
     }
   }
 
@@ -2879,19 +3045,22 @@
     const pass2 = document.getElementById('rShopPass2').value;
     if(!name)  return showModalMsg('rShopMsg','err','Введіть назву магазину');
     if(!phone) return showModalMsg('rShopMsg','err','Введіть телефон');
-    if(!owner) return showModalMsg('rShopMsg','err','Введіть ім\'я власника');
+    if(!owner) return showModalMsg('rShopMsg','err',"Введіть ім'я власника");
     if(!email || !email.includes('@')) return showModalMsg('rShopMsg','err','Введіть коректний email');
     if(!pass || pass.length < 6) return showModalMsg('rShopMsg','err','Пароль мінімум 6 символів');
     if(pass !== pass2) return showModalMsg('rShopMsg','err','Паролі не співпадають');
-    showModalMsg('rShopMsg','ok','✓ Зареєстровано! Доступний переоблік і цінники.');
-    setUser({ type:'shop', name: name, email, phone, owner, distCode: null, hasDistAccess: false });
-    setTimeout(() => closeModal(), 1800);
+    if(typeof window.fbRegisterShop === 'function') {
+      window.fbRegisterShop(name, phone, owner, email, pass);
+    } else {
+      showModalMsg('rShopMsg','err','Firebase не підключений. Перевірте конфіг.');
+    }
   }
 
   function submitRegDist() {
     const name    = document.getElementById('rDistName').value.trim();
     const contact = document.getElementById('rDistContact').value.trim();
     const phone   = document.getElementById('rDistPhone').value.trim();
+    const city    = document.getElementById('rDistCity') ? document.getElementById('rDistCity').value.trim() : '';
     const email   = document.getElementById('rDistEmail').value.trim();
     const pass    = document.getElementById('rDistPass').value;
     const pass2   = document.getElementById('rDistPass2').value;
@@ -2901,16 +3070,16 @@
     if(!email || !email.includes('@')) return showModalMsg('rDistMsg','err','Введіть коректний email');
     if(!pass || pass.length < 6) return showModalMsg('rDistMsg','err','Пароль мінімум 6 символів');
     if(pass !== pass2) return showModalMsg('rDistMsg','err','Паролі не співпадають');
-    const distCode = 'DIST-' + Math.random().toString(36).substr(2,6).toUpperCase();
-    showModalMsg('rDistMsg','ok','✓ Зареєстровано! 14 днів безкоштовно. Ваш код: ' + distCode);
-    setUser({ type:'distributor', name: name, email, phone, contact, distCode, hasDistAccess: true });
-    setTimeout(() => closeModal(), 2500);
+    if(typeof window.fbRegisterDist === 'function') {
+      window.fbRegisterDist(name, contact, phone, email, pass, city);
+    } else {
+      showModalMsg('rDistMsg','err','Firebase не підключений. Перевірте конфіг.');
+    }
   }
 
   function submitRegister() {
-    // ТЕСТОВИЙ РЕЖИМ — без перевірок
-    showModalMsg('rMsg','ok','✓ Тестовий режим: реєстрація успішна!');
-    setTimeout(() => closeModal(), 1500);
+    // Викликається якщо є стара форма — переадресовуємо на нову
+    selectRegType('shop');
   }
 
   function submitLogin() {
@@ -2918,15 +3087,11 @@
     const pass  = document.getElementById('lPass').value;
     if(!email || !email.includes('@')) return showModalMsg('lMsg','err','Введіть коректний email');
     if(!pass) return showModalMsg('lMsg','err','Введіть пароль');
-    // Тестовий вхід — магазин або дистриб'ютор
-    if(email.includes('dist') || email.includes('company')) {
-      showModalMsg('lMsg','ok','✓ Вхід успішний!');
-      setUser({ type:'distributor', name: 'Дистриб\'ютор', email, distCode: 'DIST-TEST01', hasDistAccess: true });
+    if(typeof window.fbLogin === 'function') {
+      window.fbLogin(email, pass);
     } else {
-      showModalMsg('lMsg','ok','✓ Вхід успішний!');
-      setUser({ type:'shop', name: 'Мій магазин', email, distCode: null, hasDistAccess: false });
+      showModalMsg('lMsg','err','Firebase не підключений. Перевірте конфіг.');
     }
-    setTimeout(() => closeModal(), 1500);
   }
 
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
