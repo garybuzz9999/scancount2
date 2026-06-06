@@ -411,17 +411,15 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
       <div class="step">
         <div class="step-num">03</div>
         <div class="step-body">
-          <div class="step-title">Завантажте CSV базу (опціонально)</div>
-          <div class="step-desc">Якщо у вас є своя база товарів у форматі CSV, завантажте її — ціни підтягнуться автоматично при скануванні.</div>
-          <div class="step-code">Формат CSV: <span class="key">штрихкод</span>;<span class="val">назва</span>;<span class="val">одиниця</span>;<span class="val">ціна</span>
-Приклад: <span class="str">4820001234567;Молоко 1л;шт;45.90</span></div>
+          <div class="step-title">Товар не знайдений — введіть вручну</div>
+          <div class="step-desc">Якщо штрихкод не знайдено в базі — введіть назву і одиницю виміру вручну. Товар автоматично зберігається в <strong>локальну базу вашого магазину</strong>. При наступному скануванні цього штрихкоду — назва підтягнеться автоматично.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">04</div>
         <div class="step-body">
           <div class="step-title">Збережіть переоблік</div>
-          <div class="step-desc">Натисніть <strong>Зберегти</strong> — файл CSV завантажиться на пристрій. Або натисніть <strong>Зберегти переоблік в CSV</strong> вгорі.</div>
+          <div class="step-desc">Натисніть <strong>Зберегти</strong> — результат переобліку збережеться на пристрій. База товарів вашого магазину зберігається локально і поповнюється автоматично при кожному новому скануванні.</div>
         </div>
       </div>
     </div>
@@ -450,6 +448,8 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
         </div>
       </div>
     </div>
+
+    <div class="info-box tip"><strong>База товарів:</strong> Загальна база (151к+ позицій) поповнюється постачальниками — ви отримуєте оновлення автоматично. Товари які ви додали вручну зберігаються тільки у вашому магазині.</div>
 
     <div class="info-box tip"><strong>Порада:</strong> Цінники містять штрихкод для внутрішнього використання — зручно для подальшого сканування при переобліку.</div>
 
