@@ -203,6 +203,44 @@
     window._firebaseReady = true;
     console.log("✅ Cloudflare Worker connected");
 
+window.openCamScanner = async function(callback) {
+  _camCallback = callback;
+  const overlay = document.getElementById('camOverlay');
+  overlay.style.display = 'flex';
+  document.getElementById('camMsg').textContent = 'Завантаження сканера...';
+  try {
+    if (_camReader) { try { _camReader.reset(); } catch(e) {} }
+    const { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm');
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+      BarcodeFormat.QR_CODE
+    ]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    _camReader = new BrowserMultiFormatReader(hints);
+    document.getElementById('camMsg').textContent = 'Наведіть камеру на штрихкод';
+    const result = await _camReader.decodeOnceFromConstraints(
+      { video: { facingMode: 'environment' } },
+      document.getElementById('camVideo')
+    );
+    const code = result.getText();
+    window.closeCamScanner();
+    if (_camCallback) _camCallback(code);
+  } catch(e) {
+    if (e && e.name !== 'NotFoundException') {
+      document.getElementById('camMsg').textContent = 'Помилка: ' + (e.message || e);
+    }
+  }
+};
+
+window.closeCamScanner = function() {
+  if (_camReader) { try { _camReader.reset(); } catch(e) {} _camReader = null; }
+  document.getElementById('camOverlay').style.display = 'none';
+};
+
+
     function startCameraScan() {
       window.openCamScanner(function(code) {
         document.getElementById('barcodeInput').value = code;
@@ -1385,9 +1423,11 @@
   <div class="scan-card">
     <div class="field-label" style="margin-bottom:8px">Сканування штрихкоду</div>
     <div class="scan-row">
-      <input class="scan-input" id="barcodeInput" type="text"
+      <input class="scan-input" id="barcodeInput" type="search"
         placeholder="Відскануйте або введіть штрихкод..."
-        autocomplete="off" inputmode="numeric">
+        autocomplete="off" inputmode="numeric"
+        onfocus="if(this.value&&this.value.includes('@'))this.value=''"
+        style="-webkit-appearance:none">
       <button onclick="startCameraScan()" style="height:52px;width:52px;font-size:22px;background:var(--surface2);color:var(--accent);border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">📷</button>
       <button id="okBtn" style="height:52px;padding:0 20px;font-size:16px;font-weight:700;background:#1a4a8a;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;flex-shrink:0">OK</button>
     </div>
@@ -2026,43 +2066,6 @@
 // ── LIVE CAMERA SCANNER ──────────────────────────────────────────
 let _camReader = null;
 let _camCallback = null;
-
-window.openCamScanner = async function(callback) {
-  _camCallback = callback;
-  const overlay = document.getElementById('camOverlay');
-  overlay.style.display = 'flex';
-  document.getElementById('camMsg').textContent = 'Завантаження сканера...';
-  try {
-    if (_camReader) { try { _camReader.reset(); } catch(e) {} }
-    const { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm');
-    const hints = new Map();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
-      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
-      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
-      BarcodeFormat.QR_CODE
-    ]);
-    hints.set(DecodeHintType.TRY_HARDER, true);
-    _camReader = new BrowserMultiFormatReader(hints);
-    document.getElementById('camMsg').textContent = 'Наведіть камеру на штрихкод';
-    const result = await _camReader.decodeOnceFromConstraints(
-      { video: { facingMode: 'environment' } },
-      document.getElementById('camVideo')
-    );
-    const code = result.getText();
-    window.closeCamScanner();
-    if (_camCallback) _camCallback(code);
-  } catch(e) {
-    if (e && e.name !== 'NotFoundException') {
-      document.getElementById('camMsg').textContent = 'Помилка: ' + (e.message || e);
-    }
-  }
-};
-
-window.closeCamScanner = function() {
-  if (_camReader) { try { _camReader.reset(); } catch(e) {} _camReader = null; }
-  document.getElementById('camOverlay').style.display = 'none';
-};
 // ────────────────────────────────────────────────────────────────
 
 
@@ -2205,6 +2208,11 @@ window.closeCamScanner = function() {
   // Викликається з Firebase module коли користувач залогінений
   window._setUserFromAuth = function(profile) {
     setUser(profile);
+    // Очищаємо поле сканера — Chrome міг підставити email
+    setTimeout(function(){
+      var bi = document.getElementById('barcodeInput');
+      if(bi && bi.value && bi.value.includes('@')) bi.value = '';
+    }, 200);
   };
 
   // Викликається з Firebase module коли користувач вийшов
