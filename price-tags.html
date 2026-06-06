@@ -115,6 +115,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
   <div class="card">
     <div class="card-title">Сканувати або ввести штрих-код</div>
     <div class="scan-row">
+      <button onclick="openCamScanner(function(code){document.getElementById('barcodeInput').value=code;addItem();})" style="height:48px;width:48px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">📷</button>
       <input type="text" class="scan-input" id="barcodeInput"
         inputmode="numeric" placeholder="Відскануйте штрихкод..."
         autocomplete="off" onkeydown="if(event.key==='Enter') addItem()">
@@ -234,6 +235,89 @@ function toast(msg, isError = false) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast show' + (isError ? ' error' : '');
   clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+
+<!-- CAMERA SCANNER OVERLAY -->
+<div id="camOverlay" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(0,0,0,0.7)">
+    <div style="color:#fff;font-size:15px;font-weight:700">📷 Сканування штрихкоду</div>
+    <button onclick="closeCamScanner()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>
+  <div style="flex:1;position:relative;overflow:hidden">
+    <video id="camVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+      <div style="width:260px;height:160px;border:2px solid #fff;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);position:relative">
+        <div style="position:absolute;top:0;left:0;width:20px;height:20px;border-top:3px solid #4ade80;border-left:3px solid #4ade80;border-radius:4px 0 0 0"></div>
+        <div style="position:absolute;top:0;right:0;width:20px;height:20px;border-top:3px solid #4ade80;border-right:3px solid #4ade80;border-radius:0 4px 0 0"></div>
+        <div style="position:absolute;bottom:0;left:0;width:20px;height:20px;border-bottom:3px solid #4ade80;border-left:3px solid #4ade80;border-radius:0 0 0 4px"></div>
+        <div style="position:absolute;bottom:0;right:0;width:20px;height:20px;border-bottom:3px solid #4ade80;border-right:3px solid #4ade80;border-radius:0 0 4px 0"></div>
+        <div id="scanLine" style="position:absolute;top:0;left:4px;right:4px;height:2px;background:linear-gradient(90deg,transparent,#4ade80,transparent);animation:scanAnim 1.5s linear infinite"></div>
+      </div>
+    </div>
+    <div id="camMsg" style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:#fff;font-size:13px;text-shadow:0 1px 3px #000">Наведіть камеру на штрихкод</div>
+  </div>
+</div>
+<style>@keyframes scanAnim { 0%{top:4px} 50%{top:calc(100% - 6px)} 100%{top:4px} }</style>
+
+<script>
+// ── LIVE CAMERA SCANNER ──────────────────────────────────────────
+let _camStream = null;
+let _camReader = null;
+let _camCallback = null;
+
+async function openCamScanner(callback) {
+  _camCallback = callback;
+  const overlay = document.getElementById('camOverlay');
+  overlay.style.display = 'flex';
+  document.getElementById('camMsg').textContent = 'Завантаження сканера...';
+  try {
+    const { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm');
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+      BarcodeFormat.QR_CODE
+    ]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    _camReader = new BrowserMultiFormatReader(hints);
+    _camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById('camVideo');
+    video.srcObject = _camStream;
+    await video.play();
+    document.getElementById('camMsg').textContent = 'Наведіть камеру на штрихкод';
+    _scanLoop();
+  } catch(e) {
+    document.getElementById('camMsg').textContent = 'Помилка камери: ' + e.message;
+  }
+}
+
+async function _scanLoop() {
+  const video = document.getElementById('camVideo');
+  if (!_camReader || !_camStream) return;
+  try {
+    const result = await _camReader.decodeFromVideoElement(video);
+    if (result) {
+      const code = result.getText();
+      _stopCam();
+      if (_camCallback) _camCallback(code);
+      return;
+    }
+  } catch(e) {}
+  if (_camStream) requestAnimationFrame(_scanLoop);
+}
+
+function _stopCam() {
+  if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
+  if (_camReader) { try { _camReader.reset(); } catch(e) {} _camReader = null; }
+}
+
+function closeCamScanner() {
+  _stopCam();
+  document.getElementById('camOverlay').style.display = 'none';
 }
 </script>
 </body>
