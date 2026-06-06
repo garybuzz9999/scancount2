@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScanCount — app.scancount.online</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;--surface:#13161e;--surface2:#1a1e28;--surface3:#222736;
+  --border:#2a2f3f;--border2:#363c50;
+  --text:#e8ecf4;--text2:#8892aa;--text3:#4a5268;
+  --accent:#4f8ef7;--accent2:#3d7ae8;
+  --green:#2dd4a0;--yellow:#f5c842;--red:#f56565;--orange:#f5a442;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --nav-w:220px;
+}
+*{font-family:var(--sans)}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+
+/* =================== LOGIN =================== */
+#view-login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.logo-icon{width:44px;height:44px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.logo-text{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--text);letter-spacing:0.5px}
+.logo-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.role-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:580px;margin-bottom:14px}
+.role-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:22px 18px;text-align:center;cursor:pointer;transition:all 0.2s;user-select:none}
+.role-card:hover{border-color:var(--border2);background:var(--surface2);transform:translateY(-2px)}
+.role-card.selected{border-color:var(--accent);background:rgba(79,142,247,0.08)}
+.role-icon{font-size:30px;margin-bottom:10px}
+.role-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.role-hint{font-size:11px;color:var(--text3);line-height:1.4}
+.login-box{width:100%;max-width:580px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:14px}
+.login-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:18px}
+.field label{display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+.field input{width:100%;height:48px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:10px;padding:0 16px;font-size:15px;color:var(--text);font-family:var(--mono);letter-spacing:2px;outline:none;transition:border-color 0.15s;margin-bottom:12px}
+.field input:focus{border-color:var(--accent)}
+.field input::placeholder{font-family:var(--sans);letter-spacing:0;font-size:13px;color:var(--text3)}
+.btn-login{width:100%;height:48px;background:var(--accent);border:none;border-radius:10px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;transition:background 0.15s}
+.btn-login:hover{background:var(--accent2)}
+.admin-link{font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:8px}
+.admin-link:hover{color:var(--text2)}
+.login-footer{margin-top:auto;padding-top:32px;text-align:center;font-size:11px;color:var(--text3);line-height:2}
+.login-footer a{color:var(--text3);text-decoration:none}
+.login-footer a:hover{color:var(--text2)}
+.login-footer .sep{margin:0 8px;opacity:0.4}
+
+/* =================== SHARED =================== */
+.view{display:none}
+.view.active{display:flex}
+.msg{font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px;display:none}
+.msg.err{background:rgba(245,101,101,0.1);color:var(--red);border:1px solid rgba(245,101,101,0.2);display:block}
+.msg.ok{background:rgba(45,212,160,0.1);color:var(--green);border:1px solid rgba(45,212,160,0.2);display:block}
+
+/* =================== OVERLAY/MODAL =================== */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:480px;padding:24px;animation:mIn 0.15s ease;max-height:90vh;overflow-y:auto}
+@keyframes mIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.modal-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px}
+.modal-close:hover{color:var(--text)}
+.modal-field{margin-bottom:14px}
+.modal-field label{display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+.modal-field input,.modal-field select{width:100%;height:40px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:0 12px;font-size:13px;color:var(--text);outline:none;transition:border-color 0.15s}
+.modal-field input:focus,.modal-field select:focus{border-color:var(--accent)}
+.modal-field select option{background:var(--surface2)}
+.modal-actions{display:flex;gap:8px;margin-top:18px}
+.modal-actions .btn{flex:1;justify-content:center;height:40px;font-size:13px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.info-cell{background:var(--surface2);border-radius:8px;padding:10px 12px}
+.info-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
+.info-val{font-size:13px;font-weight:600;color:var(--text)}
+.code-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.code-val{font-family:var(--mono);font-size:14px;color:var(--green);flex:1;letter-spacing:2px;font-weight:600}
+.code-copy{background:none;border:1px solid var(--border2);color:var(--text3);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;transition:all 0.15s}
+.code-copy:hover{color:var(--text);border-color:var(--accent)}
+
+/* =================== BTN =================== */
+.btn{height:32px;padding:0 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);white-space:nowrap}
+.btn:hover{background:var(--surface3);color:var(--text)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent2)}
+.btn.success{background:rgba(45,212,160,0.12);border-color:rgba(45,212,160,0.3);color:var(--green)}
+.btn.danger{background:rgba(245,101,101,0.1);border-color:rgba(245,101,101,0.25);color:var(--red)}
+.btn.warn{background:rgba(245,200,66,0.1);border-color:rgba(245,200,66,0.25);color:var(--yellow)}
+.btn.lg{height:38px;font-size:13px}
+
+/* =================== TABLE =================== */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:9px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface2)}
+.td-name{font-weight:600;color:var(--text)}
+.td-mono{font-family:var(--mono);font-size:11px}
+
+/* =================== BADGE =================== */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.badge.active{background:rgba(45,212,160,0.1);color:var(--green);border:1px solid rgba(45,212,160,0.25)}
+.badge.inactive{background:rgba(245,101,101,0.1);color:var(--red);border:1px solid rgba(245,101,101,0.25)}
+.badge.pending{background:rgba(245,200,66,0.1);color:var(--yellow);border:1px solid rgba(245,200,66,0.25)}
+.badge.confirmed{background:rgba(45,212,160,0.1);color:var(--green);border:1px solid rgba(45,212,160,0.25)}
+.badge.rejected{background:rgba(245,101,101,0.1);color:var(--red);border:1px solid rgba(245,101,101,0.25)}
+.badge.corrections{background:rgba(245,164,66,0.1);color:var(--orange);border:1px solid rgba(245,164,66,0.25)}
+.badge.transit{background:rgba(79,142,247,0.1);color:var(--accent);border:1px solid rgba(79,142,247,0.25)}
+
+/* =================== TOGGLE =================== */
+.toggle{width:38px;height:20px;border-radius:20px;border:none;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0}
+.toggle.on{background:var(--green)}
+.toggle.off{background:var(--border2)}
+.toggle::after{content:'';position:absolute;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s}
+.toggle.on::after{left:21px}
+.toggle.off::after{left:3px}
+
+/* =================== BUH LAYOUT =================== */
+#view-buh{flex-direction:row;min-height:100vh}
+.buh-nav{width:var(--nav-w);min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;left:0;top:0;bottom:0;z-index:100}
+.nav-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.nav-logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.nav-logo-text{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text);letter-spacing:0.5px}
+.nav-logo-sub{font-size:10px;color:var(--text3);margin-top:1px}
+.nav-section{padding:16px 12px 6px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 4px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all 0.15s;position:relative;user-select:none}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(79,142,247,0.12);color:var(--accent)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-icon{width:16px;height:16px;opacity:0.7;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;font-family:var(--mono)}
+.nav-footer{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
+.nav-user{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer;transition:background 0.15s}
+.nav-user:hover{background:var(--surface2)}
+.nav-avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#4f8ef7,#2dd4a0);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;color:#fff}
+.nav-user-name{font-size:12px;font-weight:600;color:var(--text)}
+.nav-user-role{font-size:10px;color:var(--text3)}
+.buh-main{margin-left:var(--nav-w);flex:1;display:flex;flex-direction:column;min-height:100vh;overflow:hidden}
+.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:700;color:var(--text)}
+.topbar-sub{font-size:12px;color:var(--text3);margin-left:4px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.content{flex:1;overflow-y:auto;padding:24px}
+.page{display:none}
+.page.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.card-title{font-size:13px;font-weight:700;color:var(--text)}
+.card-sub{font-size:11px;color:var(--text3)}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.kpi-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.kpi-val{font-family:var(--mono);font-size:26px;font-weight:600;color:var(--text);line-height:1}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:5px}
+.kpi-sub .up{color:var(--green)}
+.kpi-sub .dn{color:var(--red)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.bar-chart{display:flex;align-items:flex-end;gap:5px;height:72px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bar{width:100%;border-radius:3px 3px 0 0;background:var(--accent);opacity:0.65;min-height:3px}
+.bar-lbl{font-size:9px;color:var(--text3);font-family:var(--mono)}
+.activity-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.activity-item:last-child{border-bottom:none}
+.adot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.adot.g{background:var(--green)}.adot.y{background:var(--yellow)}.adot.r{background:var(--red)}.adot.b{background:var(--accent)}
+.atext{font-size:12px;color:var(--text2);line-height:1.5}
+.atext strong{color:var(--text);font-weight:600}
+.atime{font-size:10px;color:var(--text3);margin-top:1px;font-family:var(--mono)}
+.queue-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.queue-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px}
+.queue-avatar{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;margin-bottom:10px}
+.queue-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
+.queue-sub{font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:10px}
+.queue-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.queue-stat{background:var(--surface);border-radius:6px;padding:6px 8px;text-align:center}
+.queue-stat-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--text)}
+.queue-stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-top:1px}
+.fbtn{height:28px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text3);transition:all 0.15s}
+.fbtn:hover{color:var(--text);border-color:var(--border2)}
+.fbtn.active{background:rgba(79,142,247,0.12);border-color:var(--accent);color:var(--accent)}
+
+/* =================== MERCH LAYOUT =================== */
+#view-merch{flex-direction:row;min-height:100vh}
+.merch-nav{width:200px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;left:0;top:0;bottom:0;z-index:100}
+.merch-nav .nav-logo-icon{background:var(--green)}
+.merch-nav .nav-item.active{background:rgba(45,212,160,0.1);color:var(--green)}
+.merch-nav .nav-item.active::before{background:var(--green)}
+.merch-main{margin-left:200px;flex:1;display:flex;flex-direction:column;min-height:100vh;overflow:hidden}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.diff-row-changed td{background:rgba(245,200,66,0.05)}
+.diff-old{color:var(--text3);text-decoration:line-through;font-family:var(--mono);font-size:11px}
+.diff-new{color:var(--yellow);font-family:var(--mono);font-size:11px;font-weight:600}
+.diff-arrow{color:var(--text3);padding:0 4px}
+
+/* =================== DRIVER LAYOUT =================== */
+#view-driver{flex-direction:column;max-width:480px;margin:0 auto;min-height:100vh}
+.drv-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.drv-header-logo{display:flex;align-items:center;gap:10px}
+.drv-icon{width:32px;height:32px;background:var(--orange);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.drv-name{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)}
+.drv-role{font-size:10px;color:var(--text3)}
+.drv-user-name{font-size:12px;font-weight:600;color:var(--text);text-align:right}
+.drv-user-code{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.screen{display:none;flex:1;flex-direction:column;padding:24px 20px}
+.screen.active{display:flex}
+.home-greeting{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px}
+.home-sub{font-size:13px;color:var(--text2);margin-bottom:32px}
+.big-btn{width:100%;padding:24px 20px;border-radius:16px;border:none;cursor:pointer;display:flex;align-items:center;gap:16px;margin-bottom:14px;transition:all 0.15s;text-align:left}
+.big-btn:active{transform:scale(0.98)}
+.big-btn.scan{background:linear-gradient(135deg,rgba(45,212,160,0.15),rgba(45,212,160,0.05));border:1.5px solid rgba(45,212,160,0.3)}
+.big-btn.edit{background:linear-gradient(135deg,rgba(245,164,66,0.15),rgba(245,164,66,0.05));border:1.5px solid rgba(245,164,66,0.3)}
+.big-btn-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.big-btn.scan .big-btn-icon{background:rgba(45,212,160,0.15)}
+.big-btn.edit .big-btn-icon{background:rgba(245,164,66,0.15)}
+.big-btn-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:3px}
+.big-btn-sub{font-size:12px;color:var(--text2);line-height:1.4}
+.today-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:8px}
+.today-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.today-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.today-item:last-child{border-bottom:none}
+.today-num{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.today-shop{font-size:13px;font-weight:600;color:var(--text)}
+.today-time{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.screen-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px}
+.screen-sub{font-size:12px;color:var(--text2);margin-bottom:24px}
+.scan-area{background:var(--surface);border:1.5px dashed var(--border2);border-radius:16px;padding:32px 20px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color 0.15s}
+.scan-area:hover{border-color:var(--green)}
+.scan-area-icon{font-size:48px;margin-bottom:12px}
+.scan-area-text{font-size:14px;font-weight:600;color:var(--text2)}
+.scan-area-hint{font-size:11px;color:var(--text3);margin-top:4px}
+.or-div{text-align:center;font-size:12px;color:var(--text3);margin:12px 0;position:relative}
+.or-div::before,.or-div::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border)}
+.or-div::before{left:0}.or-div::after{right:0}
+.manual-input{width:100%;height:52px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:12px;padding:0 16px;font-size:16px;color:var(--text);font-family:var(--mono);letter-spacing:2px;outline:none;transition:border-color 0.15s;margin-bottom:12px}
+.manual-input:focus{border-color:var(--green)}
+.manual-input::placeholder{font-family:var(--sans);letter-spacing:0;font-size:13px;color:var(--text3)}
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;display:none}
+.result-card.show{display:block}
+.result-num{font-family:var(--mono);font-size:13px;color:var(--text3)}
+.result-shop{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px}
+.result-meta{font-size:11px;color:var(--text3)}
+.btn-full{width:100%;height:52px;border-radius:12px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.15s;margin-bottom:10px}
+.btn-full.green{background:var(--green);color:#000}
+.btn-full.green:hover{background:#25c090}
+.btn-full.orange{background:var(--orange);color:#000}
+.btn-full.orange:hover{background:#e0943a}
+.btn-full.ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}
+.btn-full.ghost:hover{background:var(--surface3);color:var(--text)}
+.edit-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+.edit-table th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid var(--border)}
+.edit-table td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.edit-table tr:last-child td{border-bottom:none}
+.edit-inp{width:100%;height:36px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:0 8px;font-size:13px;color:var(--text);font-family:var(--mono);outline:none;transition:border-color 0.15s}
+.edit-inp:focus{border-color:var(--orange)}
+.edit-inp.name{font-family:var(--sans);letter-spacing:0}
+.changed{background:rgba(245,164,66,0.05)}
+.changed .edit-inp{border-color:rgba(245,164,66,0.4)}
+.success-screen{text-align:center;padding:40px 20px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.success-icon{font-size:64px;margin-bottom:16px}
+.success-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px}
+.success-sub{font-size:14px;color:var(--text2);margin-bottom:32px;line-height:1.5}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",
+      authDomain: "scancount-b39ed.firebaseapp.com",
+      projectId: "scancount-b39ed",
+      storageBucket: "scancount-b39ed.firebasestorage.app",
+      messagingSenderId: "725968441059",
+      appId: "1:725968441059:web:52578672a121f80c22bfd6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Завантажити накладну по номеру
+    window.fbLoadInvoice = async function(num) {
+      try {
+        const q = query(collection(db, "invoices"), where("num", "==", num));
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        const d = snap.docs[0];
+        return { id: d.id, ...d.data() };
+      } catch(e) {
+        console.error("Помилка завантаження:", e);
+        return null;
+      }
+    };
+
+    // Підтвердити повернення з геолокацією
+    window.fbConfirmReturn = async function(invoiceId, lat, lng) {
+      try {
+        await updateDoc(doc(db, "invoices", invoiceId), {
+          status: "confirmed",
+          confirmedAt: serverTimestamp(),
+          geo: { lat, lng }
+        });
+        return true;
+      } catch(e) {
+        console.error("Помилка підтвердження:", e);
+        return false;
+      }
+    };
+
+    // Відправити коригування з геолокацією
+    window.fbSendCorrections = async function(invoiceId, items, lat, lng) {
+      try {
+        await updateDoc(doc(db, "invoices", invoiceId), {
+          status: "corrected",
+          correctedItems: items,
+          correctedAt: serverTimestamp(),
+          geo: { lat, lng }
+        });
+        return true;
+      } catch(e) {
+        console.error("Помилка коригування:", e);
+        return false;
+      }
+    };
+  </script>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",
+      authDomain: "scancount-b39ed.firebaseapp.com",
+      projectId: "scancount-b39ed",
+      storageBucket: "scancount-b39ed.firebasestorage.app",
+      messagingSenderId: "725968441059",
+      appId: "1:725968441059:web:52578672a121f80c22bfd6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Зберегти співробітника
+    window.fbAddStaff = async function(data) {
+      try {
+        const ref = await addDoc(collection(db, "staff"), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
+        return ref.id;
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Завантажити всіх співробітників
+    window.fbLoadStaff = async function(distId) {
+      try {
+        const q = query(collection(db, "staff"), where("distId", "==", distId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({id: d.id, ...d.data()}));
+      } catch(e) { console.error(e); return []; }
+    };
+
+    // Перевірити код входу
+    window.fbCheckCode = async function(code) {
+      try {
+        const q = query(collection(db, "staff"), where("code", "==", code), where("active", "==", true));
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        return {id: snap.docs[0].id, ...snap.docs[0].data()};
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Перевірити код бухгалтера
+    window.fbCheckBuhCode = async function(code) {
+      try {
+        const q = query(collection(db, "distributors"), where("buhCode", "==", code), where("active", "==", true));
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        return {id: snap.docs[0].id, ...snap.docs[0].data()};
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Активувати/деактивувати співробітника
+    window.fbToggleStaff = async function(staffId, active) {
+      try {
+        await updateDoc(doc(db, "staff", staffId), { active });
+        return true;
+      } catch(e) { console.error(e); return false; }
+    };
+
+    // Завантажити накладну по номеру (для експедитора)
+    window.fbLoadInvoice = async function(num) {
+      try {
+        const q = query(collection(db, "invoices"), where("num", "==", num));
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        const d = snap.docs[0];
+        return { id: d.id, ...d.data() };
+      } catch(e) { console.error(e); return null; }
+    };
+
+    // Підтвердити повернення з геолокацією
+    window.fbConfirmReturn = async function(invoiceId, lat, lng) {
+      try {
+        await updateDoc(doc(db, "invoices", invoiceId), {
+          status: "confirmed",
+          confirmedAt: serverTimestamp(),
+          geo: { lat, lng }
+        });
+        return true;
+      } catch(e) { console.error(e); return false; }
+    };
+
+    // Відправити коригування
+    window.fbSendCorrections = async function(invoiceId, items, lat, lng) {
+      try {
+        await updateDoc(doc(db, "invoices", invoiceId), {
+          status: "corrected",
+          correctedItems: items,
+          correctedAt: serverTimestamp(),
+          geo: { lat, lng }
+        });
+        return true;
+      } catch(e) { console.error(e); return false; }
+    };
+
+    // Ініціалізація дистриб'ютора при першому запуску
+    window.fbInitDist = async function(distName) {
+      try {
+        const distCode = 'DIST-' + Math.random().toString(36).substr(2,6).toUpperCase();
+        const buhCode = 'BUH-' + Math.random().toString(36).substr(2,4).toUpperCase();
+        const ref = await addDoc(collection(db, "distributors"), {
+          name: distName,
+          distCode,
+          buhCode,
+          active: true,
+          createdAt: serverTimestamp()
+        });
+        return { id: ref.id, distCode, buhCode };
+      } catch(e) { console.error(e); return null; }
+    };
+
+  </script>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="view-login">
+  <div class="logo">
+    <div class="logo-icon">📦</div>
+    <div>
+      <div class="logo-text">ScanCount</div>
+      <div class="logo-sub">app.scancount.online</div>
+    </div>
+  </div>
+
+  <div class="role-cards">
+    <div class="role-card" id="card-merch" onclick="selectRole('merch')">
+      <div class="role-icon">📋</div>
+      <div class="role-name">Товарознавець</div>
+      <div class="role-hint">Обробка накладних та пересортування</div>
+    </div>
+    <div class="role-card" id="card-buh" onclick="selectRole('buh')">
+      <div class="role-icon">👔</div>
+      <div class="role-name">Бухгалтер</div>
+      <div class="role-hint">Управління персоналом та звіти</div>
+    </div>
+    <div class="role-card" id="card-exp" onclick="selectRole('exp')">
+      <div class="role-icon">🚗</div>
+      <div class="role-name">Експедитор</div>
+      <div class="role-hint">Маршрути та підтвердження доставок</div>
+    </div>
+  </div>
+
+  <div class="login-box" id="loginBox" style="display:none">
+    <div class="login-title" id="loginTitle">Вхід</div>
+    <div class="field">
+      <label>Код входу</label>
+      <input id="codeInput" type="text" placeholder="XXX-XXXX" maxlength="8"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9-]/g,'')"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="loginMsg" class="msg"></div>
+    <button class="btn-login" onclick="doLogin()">Увійти</button>
+  </div>
+
+  <a class="admin-link" onclick="openModal('admin')">Вхід для адміністратора</a>
+
+  <div class="login-footer">
+    © 2026 ScanCount
+    <span class="sep">·</span>
+    <a href="mailto:scancount.service@gmail.com">scancount.service@gmail.com</a>
+    <span class="sep">·</span>
+    <a href="#">Політика конфіденційності</a>
+  </div>
+</div>
+
+<!-- ===================== BUH ===================== -->
+<div id="view-buh" class="view">
+  <nav class="buh-nav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">📦</div>
+      <div>
+        <div class="nav-logo-text">ScanCount</div>
+        <div class="nav-logo-sub">Бухгалтер</div>
+      </div>
+    </div>
+    <div class="nav-section">Головне</div>
+    <div class="nav-item active" onclick="buhPage('dashboard',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Дашборд
+    </div>
+    <div class="nav-item" onclick="buhPage('invoices',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Накладні
+      <span class="nav-badge">5</span>
+    </div>
+    <div class="nav-item" onclick="buhPage('queue',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Черга
+    </div>
+    <div class="nav-item" onclick="buhPage('shops',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Магазини
+    </div>
+    <div class="nav-section">Персонал</div>
+    <div class="nav-item" onclick="buhPage('merchandisers',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+      Товарознавці
+    </div>
+    <div class="nav-item" onclick="buhPage('expeditors',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      Експедитори
+    </div>
+    <div class="nav-section">Система</div>
+    <div class="nav-item" onclick="buhPage('reports',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Звіти
+    </div>
+    <div class="nav-item" onclick="buhPage('settings',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Налаштування
+    </div>
+    <div class="nav-footer">
+      <div class="nav-user" onclick="showLogin()">
+        <div class="nav-avatar" id="buhAvatar">Б</div>
+        <div>
+          <div class="nav-user-name" id="buhName">Бухгалтер</div>
+          <div class="nav-user-role">Вийти</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="buh-main">
+    <div class="topbar">
+      <div>
+        <span class="topbar-title" id="buhTopTitle">Дашборд</span>
+        <span class="topbar-sub" id="buhTopSub">/ огляд</span>
+      </div>
+      <div class="topbar-right" id="buhTopActions"></div>
+    </div>
+    <div class="content">
+      <!-- DASHBOARD -->
+      <div class="page active" id="buh-dashboard">
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi-label">Накладних сьогодні</div><div class="kpi-val">47</div><div class="kpi-sub"><span class="up">↑ 12%</span> до вчора</div></div>
+          <div class="kpi"><div class="kpi-label">Очікують підтвердження</div><div class="kpi-val" style="color:var(--yellow)">5</div><div class="kpi-sub"><span class="dn">2 нові за годину</span></div></div>
+          <div class="kpi"><div class="kpi-label">Активних товарознавців</div><div class="kpi-val" style="color:var(--green)">3</div><div class="kpi-sub">з 4 в системі</div></div>
+          <div class="kpi"><div class="kpi-label">Магазинів підключено</div><div class="kpi-val">7</div><div class="kpi-sub"><span class="up">+1</span> цього тижня</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Накладні за тиждень</span></div>
+            <div style="padding:16px 20px">
+              <div class="bar-chart">
+                <div class="bar-col"><div class="bar" style="height:45px"></div><div class="bar-lbl">Пн</div></div>
+                <div class="bar-col"><div class="bar" style="height:62px"></div><div class="bar-lbl">Вт</div></div>
+                <div class="bar-col"><div class="bar" style="height:38px"></div><div class="bar-lbl">Ср</div></div>
+                <div class="bar-col"><div class="bar" style="height:70px"></div><div class="bar-lbl">Чт</div></div>
+                <div class="bar-col"><div class="bar" style="height:55px"></div><div class="bar-lbl">Пт</div></div>
+                <div class="bar-col"><div class="bar" style="height:28px;opacity:0.3"></div><div class="bar-lbl">Сб</div></div>
+                <div class="bar-col"><div class="bar" style="height:18px;opacity:0.3"></div><div class="bar-lbl">Нд</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Остання активність</span></div>
+            <div style="padding:8px 20px">
+              <div class="activity-item"><div class="adot g"></div><div><div class="atext"><strong>Продукти Петренка</strong> підтвердив накладну</div><div class="atime">14:32</div></div></div>
+              <div class="activity-item"><div class="adot y"></div><div><div class="atext">Нова накладна від <strong>Sunrise</strong> — в черзі</div><div class="atime">14:15</div></div></div>
+              <div class="activity-item"><div class="adot b"></div><div><div class="atext"><strong>Іваненко О.</strong> обробив накладну</div><div class="atime">13:50</div></div></div>
+              <div class="activity-item"><div class="adot r"></div><div><div class="atext">Товарознавець <strong>Сидоренко М.</strong> деактивований</div><div class="atime">13:20</div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Останні накладні</span><button class="btn" onclick="buhPage('invoices',null)">Всі →</button></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Номер</th><th>Магазин</th><th>Тип</th><th>Товарознавець</th><th>Час</th><th>Статус</th></tr></thead>
+            <tbody>
+              <tr><td class="td-mono">RET-M3K9A2</td><td class="td-name">Продукти Петренка</td><td>↩ Повернення</td><td>Іваненко О.</td><td class="td-mono">14:32</td><td><span class="badge confirmed">✓ Підтверджено</span></td></tr>
+              <tr><td class="td-mono">SORT-Q2W8E5</td><td class="td-name">Мінімаркет Sunrise</td><td>✏️ Пересортування</td><td>Петренко В.</td><td class="td-mono">14:15</td><td><span class="badge pending">⏳ Очікує</span></td></tr>
+              <tr><td class="td-mono">RET-B7X1P4</td><td class="td-name">Гастроном №1</td><td>↩ Повернення</td><td>Іваненко О.</td><td class="td-mono">13:50</td><td><span class="badge confirmed">✓ Підтверджено</span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+      <!-- INVOICES -->
+      <div class="page" id="buh-invoices">
+        <div class="card">
+          <div class="card-header"><span class="card-title">↩ Повернення — потребують підтвердження</span><span class="card-sub">Підтверджені експедитором</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Номер</th><th>Магазин</th><th>Експедитор</th><th>Товарознавець</th><th>Позицій</th><th>Час</th><th>Статус</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="td-mono">RET-M3K9A2</td><td class="td-name">Продукти Петренка</td><td>Коваль Д.</td><td>Іваненко О.</td><td class="td-mono">3</td><td class="td-mono">14:32</td><td><span class="badge pending">⏳ Очікує</span></td><td><button class="btn" onclick="openModal('viewInv')">Розглянути</button></td></tr>
+              <tr><td class="td-mono">RET-N5R3T7</td><td class="td-name">Продукти 24/7</td><td>Мельник І.</td><td>— черга</td><td class="td-mono">2</td><td class="td-mono">13:20</td><td><span class="badge pending">⏳ Очікує</span></td><td><button class="btn" onclick="openModal('viewInv')">Розглянути</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">✏️ Пересортування — є поправки</span><span class="card-sub">Відредаговані експедитором</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Номер</th><th>Магазин</th><th>Експедитор</th><th>Товарознавець</th><th>Поправок</th><th>Час</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="td-mono">SORT-Q2W8E5</td><td class="td-name">Мінімаркет Sunrise</td><td>Мельник І.</td><td>Петренко В.</td><td><span style="color:var(--yellow);font-weight:600;font-family:var(--mono)">3</span></td><td class="td-mono">14:15</td><td><button class="btn warn" onclick="openModal('viewSort')">Переглянути</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="card-header" style="cursor:pointer" onclick="toggleArchive()">
+            <span class="card-title" style="color:var(--text3)">📁 Архів</span>
+            <span style="font-size:11px;color:var(--text3)" id="archToggle">▼ Показати</span>
+          </div>
+          <div id="archBody" style="display:none">
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>Номер</th><th>Магазин</th><th>Тип</th><th>Дата</th></tr></thead>
+              <tbody>
+                <tr><td class="td-mono" style="color:var(--text3)">RET-B7X1P4</td><td style="color:var(--text3)">Гастроном №1</td><td style="color:var(--text3)">↩ Повернення</td><td class="td-mono" style="color:var(--text3)">вчора 09:45</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+      <!-- QUEUE -->
+      <div class="page" id="buh-queue">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:12px;color:var(--text2)">Накладні розподіляються по черзі між активними товарознавцями</div>
+          <button class="btn" onclick="alert('Перерозподілено!')">↺ Перерозподілити</button>
+        </div>
+        <div class="queue-grid" id="queueGrid"></div>
+      </div>
+      <!-- SHOPS -->
+      <div class="page" id="buh-shops">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Магазини</span><button class="btn primary" onclick="openModal('newShop')">+ Магазин</button></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Назва</th><th>Телефон</th><th>Накладних</th><th>Активність</th><th>Статус</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="td-name">Продукти Петренка</td><td class="td-mono">+380 67 123 45 67</td><td class="td-mono">24</td><td>сьогодні 14:32</td><td><span class="badge active">● Активний</span></td><td><button class="btn danger">Деактивувати</button></td></tr>
+              <tr><td class="td-name">Гастроном №1</td><td class="td-mono">+380 50 234 56 78</td><td class="td-mono">18</td><td>сьогодні 13:50</td><td><span class="badge active">● Активний</span></td><td><button class="btn danger">Деактивувати</button></td></tr>
+              <tr><td class="td-name">Продукти 24/7</td><td class="td-mono">+380 67 456 78 90</td><td class="td-mono">7</td><td>вчора 18:30</td><td><span class="badge inactive">● Неактивний</span></td><td><button class="btn success">Активувати</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+      <!-- MERCHANDISERS -->
+      <div class="page" id="buh-merchandisers">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Товарознавці</span><button class="btn primary" onclick="openModal('newMerch')">+ Товарознавець</button></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Ім'я</th><th>Телефон</th><th>Код входу</th><th>Оброблено</th><th>В черзі</th><th>Активний</th><th></th></tr></thead>
+            <tbody id="merchTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+      <!-- EXPEDITORS -->
+      <div class="page" id="buh-expeditors">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Експедитори</span><button class="btn primary" onclick="openModal('newExp')">+ Експедитор</button></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Ім'я</th><th>Телефон</th><th>Код входу</th><th>Маршрутів</th><th>Активний</th><th></th></tr></thead>
+            <tbody id="expTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+      <!-- REPORTS -->
+      <div class="page" id="buh-reports">
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi-label">Місяць — накладних</div><div class="kpi-val">1,240</div></div>
+          <div class="kpi"><div class="kpi-label">Повернень</div><div class="kpi-val">89</div><div class="kpi-sub">7.2%</div></div>
+          <div class="kpi"><div class="kpi-label">Пересортувань</div><div class="kpi-val">34</div><div class="kpi-sub">2.7%</div></div>
+          <div class="kpi"><div class="kpi-label">Активних магазинів</div><div class="kpi-val">7</div></div>
+        </div>
+      </div>
+      <!-- SETTINGS -->
+      <div class="page" id="buh-settings">
+        <div class="card" style="max-width:520px">
+          <div class="card-header"><span class="card-title">Профіль компанії</span></div>
+          <div style="padding:20px">
+            <div class="modal-field"><label>Назва компанії</label><input value="ТОВ Дистрибюшн Плюс"></div>
+            <div class="modal-field"><label>Email</label><input value="buh@company.ua"></div>
+            <button class="btn primary" onclick="alert('Збережено!')">Зберегти</button>
+          </div>
+        </div>
+        <div class="card" style="max-width:520px">
+          <div class="card-header"><span class="card-title">API ключ</span></div>
+          <div style="padding:20px">
+            <div class="code-box">
+              <div class="code-val">sk_live_dist_x2k9m4n7p1q3r8s5t6</div>
+              <button class="code-copy" onclick="navigator.clipboard.writeText('sk_live_dist_x2k9m4n7p1q3r8s5t6');this.textContent='✓';setTimeout(()=>this.textContent='Копіювати',2000)">Копіювати</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MERCH ===================== -->
+<div id="view-merch" class="view">
+  <nav class="merch-nav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">📋</div>
+      <div>
+        <div class="nav-logo-text">ScanCount</div>
+        <div class="nav-logo-sub">Товарознавець</div>
+      </div>
+    </div>
+    <div class="nav-section">Накладні</div>
+    <div class="nav-item active" onclick="merchPage('incoming',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      Вхідні повернення
+      <span class="nav-badge">2</span>
+    </div>
+    <div class="nav-item" onclick="merchPage('outgoing',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 6 10.5 15.5 15.5 10.5 23 18"/><polyline points="17 18 23 18 23 12"/></svg>
+      Мої накладні
+      <span class="nav-badge" style="background:var(--yellow);color:#000">1</span>
+    </div>
+    <div class="nav-section">Огляд</div>
+    <div class="nav-item" onclick="merchPage('mdashboard',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Дашборд
+    </div>
+    <div class="nav-footer">
+      <div class="nav-user" onclick="showLogin()">
+        <div class="nav-avatar" style="background:linear-gradient(135deg,var(--green),var(--accent))" id="merchAvatar">І</div>
+        <div>
+          <div class="nav-user-name" id="merchName">Товарознавець</div>
+          <div class="nav-user-role">Вийти</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="merch-main">
+    <div class="topbar">
+      <div>
+        <span class="topbar-title" id="merchTopTitle">Вхідні повернення</span>
+        <span class="topbar-sub" id="merchTopSub"> / від магазинів</span>
+      </div>
+      <div class="topbar-right"><span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="mTime"></span></div>
+    </div>
+    <div class="content">
+      <div class="page active" id="merch-incoming">
+        <div class="card">
+          <div class="card-header"><span class="card-title">↩ Повернення від магазинів</span><span class="card-sub">Підтверджені експедитором</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Номер</th><th>Магазин</th><th>Експедитор</th><th>Позицій</th><th>Час</th><th>Статус</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="td-mono">RET-M3K9A2</td><td class="td-name">Продукти Петренка</td><td>Коваль Д.</td><td class="td-mono">3</td><td class="td-mono">14:32</td><td><span class="badge pending">⏳ Нова</span></td><td><button class="btn" onclick="openModal('mViewInv')">Розглянути</button></td></tr>
+              <tr><td class="td-mono">RET-N5R3T7</td><td class="td-name">Гастроном №1</td><td>Мельник І.</td><td class="td-mono">2</td><td class="td-mono">13:20</td><td><span class="badge pending">⏳ Нова</span></td><td><button class="btn" onclick="openModal('mViewInv')">Розглянути</button></td></tr>
+              <tr><td class="td-mono">RET-B7X1P4</td><td class="td-name">Супермаркет Весна</td><td>Коваль Д.</td><td class="td-mono">5</td><td class="td-mono">вчора</td><td><span class="badge confirmed">✓ Оброблено</span></td><td><button class="btn" onclick="openModal('mViewInv')">Переглянути</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+      <div class="page" id="merch-outgoing">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Мої накладні</span><span class="card-sub">Статус від експедитора</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Номер</th><th>Магазин</th><th>Позицій</th><th>Відправлена</th><th>Статус</th><th></th></tr></thead>
+            <tbody>
+              <tr style="background:rgba(245,164,66,0.04)"><td class="td-mono">OUT-Q2W8E5</td><td class="td-name">Мінімаркет Sunrise</td><td class="td-mono">8</td><td class="td-mono">14:15</td><td><span class="badge corrections">⚠️ Є поправки</span></td><td><button class="btn warn" onclick="openModal('mViewCorr')">Переглянути</button></td></tr>
+              <tr><td class="td-mono">OUT-K8L2M6</td><td class="td-name">Продукти 24/7</td><td class="td-mono">12</td><td class="td-mono">13:00</td><td><span class="badge transit">🚗 У дорозі</span></td><td><button class="btn">Деталі</button></td></tr>
+              <tr><td class="td-mono">OUT-H4J6K1</td><td class="td-name">Продукти Петренка</td><td class="td-mono">6</td><td class="td-mono">вчора</td><td><span class="badge confirmed">✓ Підтверджено</span></td><td><button class="btn" onclick="openModal('mViewConf')">Переглянути</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+      <div class="page" id="merch-mdashboard">
+        <div class="kpi-row">
+          <div class="kpi"><div class="kpi-label">Оброблено сьогодні</div><div class="kpi-val">12</div></div>
+          <div class="kpi"><div class="kpi-label">Очікують обробки</div><div class="kpi-val" style="color:var(--yellow)">2</div></div>
+          <div class="kpi"><div class="kpi-label">Поправки від водія</div><div class="kpi-val" style="color:var(--orange)">1</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DRIVER ===================== -->
+<div id="view-driver" class="view">
+  <div class="drv-header">
+    <div class="drv-header-logo">
+      <div class="drv-icon">🚗</div>
+      <div><div class="drv-name">ScanCount</div><div class="drv-role">Експедитор</div></div>
+    </div>
+    <div>
+      <div class="drv-user-name" id="drvName">Експедитор</div>
+      <div class="drv-user-code" id="drvCode">EXP-XXXX</div>
+    </div>
+  </div>
+  <!-- HOME -->
+  <div class="screen active" id="drv-home">
+    <div class="home-greeting">Доброго дня!</div>
+    <div class="home-sub">Що робимо?</div>
+    <button class="big-btn scan" onclick="drvScreen('scan-return')">
+      <div class="big-btn-icon">📷</div>
+      <div><div class="big-btn-title">Сканувати накладну</div><div class="big-btn-sub">Повернення від магазину — сканування і підтвердження з геолокацією</div></div>
+    </button>
+    <button class="big-btn edit" onclick="drvScreen('scan-edit')">
+      <div class="big-btn-icon">✏️</div>
+      <div><div class="big-btn-title">Внести коригування</div><div class="big-btn-sub">Приходна не збіглась — редагуємо і відправляємо з геолокацією</div></div>
+    </button>
+    <div class="today-card">
+      <div class="today-title">Сьогодні оброблено</div>
+      <div class="today-item">
+        <div><div class="today-shop">Продукти Петренка</div><div class="today-num">RET-H4J6K1</div></div>
+        <div style="text-align:right"><span class="badge confirmed">✓</span><div class="today-time">11:30</div></div>
+      </div>
+      <div class="today-item">
+        <div><div class="today-shop">Мінімаркет Sunrise</div><div class="today-num">OUT-Q2W8E5</div></div>
+        <div style="text-align:right"><span class="badge corrections">⚠️</span><div class="today-time">14:15</div></div>
+      </div>
+    </div>
+    <button class="btn-full ghost" style="margin-top:16px" onclick="showLogin()">← Вийти</button>
+  </div>
+  <!-- SCAN RETURN -->
+  <div class="screen" id="drv-scan-return">
+    <div class="screen-title">📷 Повернення</div>
+    <div class="screen-sub">Відскануйте штрихкод накладної</div>
+    <div class="scan-area" onclick="drvSimScan('return')">
+      <div class="scan-area-icon">▦</div>
+      <div class="scan-area-text">Натисніть для сканування</div>
+      <div class="scan-area-hint">Або введіть номер вручну</div>
+    </div>
+    <div class="or-div">або</div>
+    <input class="manual-input" id="retCode" type="text" placeholder="RET-XXXXXXXX"
+      oninput="this.value=this.value.toUpperCase()"
+      onkeydown="if(event.key==='Enter')drvLoadReturn()">
+    <div id="retMsg" class="msg"></div>
+    <div class="result-card" id="retResult">
+      <div class="result-num" id="retNum">RET-M3K9A2</div>
+      <div class="result-shop" id="retShop">Продукти Петренка</div>
+      <div class="result-meta" id="retMeta">3 позиції · Іваненко О.</div>
+      <div style="font-size:12px;color:var(--text2);background:var(--surface2);border-radius:8px;padding:10px 12px;margin:12px 0">
+        Підтвердіть що товар отримано
+      </div>
+      <button class="btn-full green" onclick="drvConfirmReturn()">✓ Підтвердити з геолокацією</button>
+    </div>
+    <button class="btn-full ghost" onclick="drvScreen('home')">← Назад</button>
+  </div>
+  <!-- SCAN EDIT -->
+  <div class="screen" id="drv-scan-edit">
+    <div class="screen-title">✏️ Коригування</div>
+    <div class="screen-sub">Відскануйте штрихкод приходної накладної</div>
+    <div class="scan-area" onclick="drvSimScan('edit')">
+      <div class="scan-area-icon">▦</div>
+      <div class="scan-area-text">Натисніть для сканування</div>
+      <div class="scan-area-hint">Або введіть номер вручну</div>
+    </div>
+    <div class="or-div">або</div>
+    <input class="manual-input" id="editCode" type="text" placeholder="OUT-XXXXXXXX"
+      oninput="this.value=this.value.toUpperCase()"
+      onkeydown="if(event.key==='Enter')drvLoadEdit()">
+    <div id="editMsg" class="msg"></div>
+    <button class="btn-full orange" onclick="drvLoadEdit()">Завантажити накладну</button>
+    <button class="btn-full ghost" onclick="drvScreen('home')">← Назад</button>
+  </div>
+  <!-- EDIT INVOICE -->
+  <div class="screen" id="drv-edit-invoice">
+    <div class="screen-title">✏️ Редагування</div>
+    <div class="screen-sub" id="editInvMeta">OUT-Q2W8E5 · Sunrise</div>
+    <div style="background:rgba(245,164,66,0.08);border:1px solid rgba(245,164,66,0.2);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--orange)">
+      Змініть найменування або кількість де є розбіжність
+    </div>
+    <div style="overflow-x:auto">
+      <table class="edit-table">
+        <thead><tr><th>Штрихкод</th><th>Найменування</th><th style="width:70px">К-сть</th></tr></thead>
+        <tbody id="editTbody"></tbody>
+      </table>
+    </div>
+    <button class="btn-full orange" onclick="drvSendCorr()">📤 Відправити з геолокацією</button>
+    <button class="btn-full ghost" onclick="drvScreen('scan-edit')">← Назад</button>
+  </div>
+  <!-- SUCCESS RETURN -->
+  <div class="screen" id="drv-success-return">
+    <div class="success-screen">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Підтверджено!</div>
+      <div class="success-sub">Накладна підтверджена з геолокацією і відправлена товарознавцю</div>
+      <button class="btn-full green" onclick="drvScreen('home')">На головну</button>
+    </div>
+  </div>
+  <!-- SUCCESS EDIT -->
+  <div class="screen" id="drv-success-edit">
+    <div class="success-screen">
+      <div class="success-icon">📤</div>
+      <div class="success-title">Відправлено!</div>
+      <div class="success-sub">Коригування відправлено з геолокацією товарознавцю</div>
+      <button class="btn-full orange" onclick="drvScreen('home')">На головну</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+<div class="overlay" id="overlay-admin" onclick="if(event.target===this)closeModal('admin')">
+  <div class="modal">
+    <div class="modal-title">🔐 Адміністратор <button class="modal-close" onclick="closeModal('admin')">✕</button></div>
+    <div class="modal-field"><label>Email</label><input id="adminEmail" type="email" placeholder="admin"></div>
+    <div class="modal-field"><label>Пароль</label><input id="adminPass" type="password" placeholder="••••••••"></div>
+    <div id="adminMsg" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('admin')">Скасувати</button>
+      <button class="btn primary" onclick="doAdminLogin()">Увійти</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-newMerch" onclick="if(event.target===this)closeModal('newMerch')">
+  <div class="modal">
+    <div class="modal-title">Новий товарознавець <button class="modal-close" onclick="closeModal('newMerch')">✕</button></div>
+    <div class="modal-field"><label>Ім'я</label><input id="mName" placeholder="Іваненко Олег"></div>
+    <div class="modal-field"><label>Телефон</label><input id="mPhone" placeholder="+380 XX XXX XX XX"></div>
+    <div id="mMsg" class="msg"></div>
+    <div style="font-size:12px;color:var(--text2);margin-top:8px">Система згенерує код входу автоматично</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('newMerch')">Скасувати</button>
+      <button class="btn primary" onclick="addMerch()">Додати</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-newExp" onclick="if(event.target===this)closeModal('newExp')">
+  <div class="modal">
+    <div class="modal-title">Новий експедитор <button class="modal-close" onclick="closeModal('newExp')">✕</button></div>
+    <div class="modal-field"><label>Ім'я</label><input id="eName" placeholder="Коваль Дмитро"></div>
+    <div class="modal-field"><label>Телефон</label><input id="ePhone" placeholder="+380 XX XXX XX XX"></div>
+    <div id="eMsg" class="msg"></div>
+    <div style="font-size:12px;color:var(--text2);margin-top:8px">Система згенерує унікальний код входу</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('newExp')">Скасувати</button>
+      <button class="btn primary" onclick="addExp()">Додати</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-newShop" onclick="if(event.target===this)closeModal('newShop')">
+  <div class="modal">
+    <div class="modal-title">Новий магазин <button class="modal-close" onclick="closeModal('newShop')">✕</button></div>
+    <div class="modal-field"><label>Назва</label><input placeholder="Магазин Назва"></div>
+    <div class="modal-field"><label>Телефон</label><input placeholder="+380 XX XXX XX XX"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('newShop')">Скасувати</button>
+      <button class="btn primary" onclick="alert('Додано!');closeModal('newShop')">Додати</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-viewInv" onclick="if(event.target===this)closeModal('viewInv')">
+  <div class="modal">
+    <div class="modal-title">↩ RET-M3K9A2 <button class="modal-close" onclick="closeModal('viewInv')">✕</button></div>
+    <div class="info-grid">
+      <div class="info-cell"><div class="info-label">Магазин</div><div class="info-val">Продукти Петренка</div></div>
+      <div class="info-cell"><div class="info-label">Експедитор</div><div class="info-val">Коваль Дмитро</div></div>
+      <div class="info-cell"><div class="info-label">Геолокація</div><div class="info-val" style="color:var(--green)">✓ Зафіксовано</div></div>
+      <div class="info-cell"><div class="info-label">Час</div><div class="info-val" style="font-family:var(--mono)">14:32</div></div>
+    </div>
+    <table style="margin-bottom:14px">
+      <thead><tr><th>Товар</th><th>Штрихкод</th><th>К-сть</th></tr></thead>
+      <tbody>
+        <tr><td>Молоко 1л</td><td class="td-mono">4820001111111</td><td class="td-mono">10</td></tr>
+        <tr><td>Хліб пшеничний</td><td class="td-mono">4820002222222</td><td class="td-mono">5</td></tr>
+        <tr><td>Масло вершкове</td><td class="td-mono">4820003333333</td><td class="td-mono">3</td></tr>
+      </tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('viewInv')">Закрити</button>
+      <button class="btn danger" onclick="alert('Відхилено');closeModal('viewInv')">✗ Відхилити</button>
+      <button class="btn success" onclick="alert('Внесено в систему');closeModal('viewInv')">✓ Внесено</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-viewSort" onclick="if(event.target===this)closeModal('viewSort')">
+  <div class="modal">
+    <div class="modal-title">⚠️ SORT-Q2W8E5 <button class="modal-close" onclick="closeModal('viewSort')">✕</button></div>
+    <div style="background:rgba(245,164,66,0.08);border:1px solid rgba(245,164,66,0.2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--orange);margin-bottom:12px">
+      Експедитор вніс поправки на місці — 3 позиції
+    </div>
+    <table style="margin-bottom:14px">
+      <thead><tr><th>Товар</th><th>Відправлено</th><th></th><th>Фактично</th><th>Різниця</th></tr></thead>
+      <tbody>
+        <tr class="diff-row-changed"><td>Молоко 1л</td><td class="diff-old">10</td><td class="diff-arrow">→</td><td class="diff-new">8</td><td class="td-mono" style="color:var(--red)">−2</td></tr>
+        <tr class="diff-row-changed"><td>Хліб пшеничний</td><td class="diff-old">5</td><td class="diff-arrow">→</td><td class="diff-new">7</td><td class="td-mono" style="color:var(--green)">+2</td></tr>
+        <tr class="diff-row-changed"><td>Масло вершкове</td><td class="diff-old">3</td><td class="diff-arrow">→</td><td class="diff-new">2</td><td class="td-mono" style="color:var(--red)">−1</td></tr>
+      </tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('viewSort')">Закрити</button>
+      <button class="btn danger" onclick="alert('Відхилено');closeModal('viewSort')">✗ Відхилити</button>
+      <button class="btn success" onclick="alert('Прийнято');closeModal('viewSort')">✓ Прийняти</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-mViewInv" onclick="if(event.target===this)closeModal('mViewInv')">
+  <div class="modal">
+    <div class="modal-title">↩ RET-M3K9A2 <button class="modal-close" onclick="closeModal('mViewInv')">✕</button></div>
+    <div class="info-grid">
+      <div class="info-cell"><div class="info-label">Магазин</div><div class="info-val">Продукти Петренка</div></div>
+      <div class="info-cell"><div class="info-label">Геолокація</div><div class="info-val" style="color:var(--green)">✓ Зафіксовано</div></div>
+    </div>
+    <table style="margin-bottom:14px">
+      <thead><tr><th>Товар</th><th>Штрихкод</th><th>К-сть</th></tr></thead>
+      <tbody>
+        <tr><td>Молоко 1л</td><td class="td-mono">4820001111111</td><td class="td-mono">10</td></tr>
+        <tr><td>Хліб пшеничний</td><td class="td-mono">4820002222222</td><td class="td-mono">5</td></tr>
+      </tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('mViewInv')">Закрити</button>
+      <button class="btn success" onclick="alert('Внесено в систему');closeModal('mViewInv')">✓ Внесено в систему</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-mViewCorr" onclick="if(event.target===this)closeModal('mViewCorr')">
+  <div class="modal">
+    <div class="modal-title">⚠️ Поправки — OUT-Q2W8E5 <button class="modal-close" onclick="closeModal('mViewCorr')">✕</button></div>
+    <div style="background:rgba(245,164,66,0.08);border:1px solid rgba(245,164,66,0.2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--orange);margin-bottom:12px">
+      Мельник І. вніс поправки на місці — 3 позиції
+    </div>
+    <table style="margin-bottom:14px">
+      <thead><tr><th>Товар</th><th>Відправлено</th><th></th><th>Фактично</th><th>Різниця</th></tr></thead>
+      <tbody>
+        <tr class="diff-row-changed"><td>Молоко 1л</td><td class="diff-old">10</td><td class="diff-arrow">→</td><td class="diff-new">8</td><td class="td-mono" style="color:var(--red)">−2</td></tr>
+        <tr class="diff-row-changed"><td>Хліб</td><td class="diff-old">5</td><td class="diff-arrow">→</td><td class="diff-new">7</td><td class="td-mono" style="color:var(--green)">+2</td></tr>
+        <tr class="diff-row-changed"><td>Масло</td><td class="diff-old">3</td><td class="diff-arrow">→</td><td class="diff-new">2</td><td class="td-mono" style="color:var(--red)">−1</td></tr>
+      </tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('mViewCorr')">Закрити</button>
+      <button class="btn danger" onclick="alert('Відхилено');closeModal('mViewCorr')">✗ Відхилити</button>
+      <button class="btn success" onclick="alert('Прийнято');closeModal('mViewCorr')">✓ Прийняти</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-mViewConf" onclick="if(event.target===this)closeModal('mViewConf')">
+  <div class="modal">
+    <div class="modal-title">✓ OUT-H4J6K1 <button class="modal-close" onclick="closeModal('mViewConf')">✕</button></div>
+    <div style="background:rgba(45,212,160,0.06);border:1px solid rgba(45,212,160,0.15);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--green)">
+      ✓ Прийнято без зауважень
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn" style="flex:1;justify-content:center;height:40px" onclick="closeModal('mViewConf')">Закрити</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+let merchs = [
+  {name:'Іваненко Олег',  phone:'+380 67 111 11 11', code:'MRC-4F7K', active:true,  done:12, queue:3, color:'#4f8ef7'},
+  {name:'Петренко Василь',phone:'+380 50 222 22 22', code:'MRC-9A2X', active:true,  done:18, queue:2, color:'#2dd4a0'},
+  {name:'Сидоренко Марія',phone:'+380 63 333 33 33', code:'MRC-1B5Z', active:false, done:9,  queue:0, color:'#f5c842'},
+  {name:'Ковальчук Іван', phone:'+380 67 444 44 44', code:'MRC-3D8W', active:true,  done:6,  queue:1, color:'#f5a442'},
+];
+let exps = [
+  {name:'Коваль Дмитро', phone:'+380 67 111 22 33', code:'EXP-7X9K', active:true,  routes:4},
+  {name:'Мельник Ірина', phone:'+380 50 444 55 66', code:'EXP-2M4N', active:true,  routes:2},
+  {name:'Бондар Сергій', phone:'+380 63 777 88 99', code:'EXP-5Q8R', active:false, routes:0},
+];
+const CODES = {
+  merch: merchs.map(m=>m.code),
+  buh:   ['BUH-0001'],
+  exp:   exps.map(e=>e.code),
+};
+const PREFIXES = {merch:'MRC', buh:'BUH', exp:'EXP'};
+const TITLES   = {merch:'📋 Вхід — Товарознавець', buh:'👔 Вхід — Бухгалтер', exp:'🚗 Вхід — Експедитор'};
+let currentRole = null;
+
+// ===== LOGIN =====
+function selectRole(role) {
+  currentRole = role;
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('card-'+role).classList.add('selected');
+  document.getElementById('loginTitle').textContent = TITLES[role];
+  document.getElementById('loginBox').style.display = 'block';
+  document.getElementById('codeInput').value = '';
+  document.getElementById('loginMsg').className = 'msg';
+  document.getElementById('loginMsg').textContent = '';
+  document.getElementById('codeInput').placeholder = PREFIXES[role]+'-XXXX';
+  setTimeout(()=>document.getElementById('codeInput').focus(),100);
+}
+
+function doLogin() {
+  const code = document.getElementById('codeInput').value.trim();
+  const msg = document.getElementById('loginMsg');
+  if (!code||code.length<4) { msg.className='msg err'; msg.textContent='Введіть код входу'; return; }
+  // Спочатку перевіряємо локально, потім Firebase
+  const localOk = CODES[currentRole]&&CODES[currentRole].includes(code);
+  if (localOk) {
+    msg.className='msg ok'; msg.textContent='✓ Код прийнято — входимо...';
+    setTimeout(()=>{
+      document.getElementById('view-login').style.display='none';
+      if (currentRole==='buh') {
+        document.getElementById('view-buh').classList.add('active');
+      } else if (currentRole==='merch') {
+        const m = merchs.find(x=>x.code===code);
+        if (m) { document.getElementById('merchName').textContent=m.name; document.getElementById('merchAvatar').textContent=m.name[0]; }
+        document.getElementById('view-merch').classList.add('active');
+        setInterval(()=>{ document.getElementById('mTime').textContent=new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'}); },1000);
+      } else {
+        const e = exps.find(x=>x.code===code);
+        if (e) { document.getElementById('drvName').textContent=e.name; document.getElementById('drvCode').textContent=e.code; }
+        document.getElementById('view-driver').classList.add('active');
+      }
+    },800);
+  } else if (window.fbCheckCode) {
+    // Перевіряємо в Firebase
+    msg.className='msg ok'; msg.textContent='Перевіряю...';
+    window.fbCheckCode(code).then(staff => {
+      if (staff) {
+        msg.className='msg ok'; msg.textContent='✓ Код прийнято — входимо...';
+        setTimeout(()=>{
+          document.getElementById('view-login').style.display='none';
+          const role = staff.role;
+          if (role==='merch') {
+            document.getElementById('merchName').textContent=staff.name;
+            document.getElementById('merchAvatar').textContent=staff.name[0];
+            document.getElementById('view-merch').classList.add('active');
+          } else if (role==='exp') {
+            document.getElementById('drvName').textContent=staff.name;
+            document.getElementById('drvCode').textContent=staff.code;
+            document.getElementById('view-driver').classList.add('active');
+          }
+        },800);
+      } else {
+        msg.className='msg err'; msg.textContent='Невірний код. Зверніться до бухгалтера.';
+      }
+    });
+  } else {
+    msg.className='msg err'; msg.textContent='Невірний код. Зверніться до бухгалтера.';
+  }
+}
+
+function doAdminLogin() {
+  const email=document.getElementById('adminEmail').value.trim();
+  const pass=document.getElementById('adminPass').value.trim();
+  const msg=document.getElementById('adminMsg');
+  if (email==='admin'&&pass==='123456') {
+    msg.className='msg ok'; msg.textContent='✓ Входимо...';
+    setTimeout(()=>{ closeModal('admin'); document.getElementById('view-login').style.display='none'; document.getElementById('view-buh').classList.add('active'); },800);
+  } else { msg.className='msg err'; msg.textContent='Невірний email або пароль'; }
+}
+
+function showLogin() {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-login').style.display='flex';
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('loginBox').style.display='none';
+  currentRole=null;
+}
+
+// ===== BUH =====
+const buhPages = {
+  dashboard:{title:'Дашборд',sub:'/ огляд'},
+  invoices:{title:'Накладні',sub:'/ потребують уваги'},
+  queue:{title:'Черга',sub:'/ розподіл'},
+  shops:{title:'Магазини',sub:'/ підключені'},
+  merchandisers:{title:'Товарознавці',sub:'/ управління'},
+  expeditors:{title:'Експедитори',sub:'/ управління'},
+  reports:{title:'Звіти',sub:'/ аналітика'},
+  settings:{title:'Налаштування',sub:'/ компанія'},
+};
+function buhPage(page, el) {
+  document.querySelectorAll('#view-buh .page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.buh-nav .nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('buh-'+page).classList.add('active');
+  if (el) el.classList.add('active');
+  document.getElementById('buhTopTitle').textContent = buhPages[page].title;
+  document.getElementById('buhTopSub').textContent = buhPages[page].sub;
+  if (page==='merchandisers') renderMerchs();
+  if (page==='expeditors') renderExps();
+  if (page==='queue') renderQueue();
+}
+function renderMerchs() {
+  document.getElementById('merchTable').innerHTML = merchs.map((m,i)=>`
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:28px;height:28px;border-radius:7px;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">${m.name[0]}</div>
+        <span class="td-name">${m.name}</span></div></td>
+      <td class="td-mono">${m.phone}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <span class="td-mono" style="color:var(--green);letter-spacing:2px">${m.code}</span>
+        <button class="code-copy" onclick="navigator.clipboard.writeText('${m.code}');this.textContent='✓';setTimeout(()=>this.textContent='Копіювати',1500)">Копіювати</button>
+      </div></td>
+      <td class="td-mono">${m.done}</td>
+      <td class="td-mono">${m.queue}</td>
+      <td><button class="toggle ${m.active?'on':'off'}" onclick="toggleMerch(${i})"></button></td>
+      <td><button class="btn danger" onclick="if(confirm('Видалити?')){merchs.splice(${i},1);renderMerchs()}">Видалити</button></td>
+    </tr>`).join('');
+}
+function renderExps() {
+  document.getElementById('expTable').innerHTML = exps.map((e,i)=>`
+    <tr>
+      <td class="td-name">${e.name}</td>
+      <td class="td-mono">${e.phone}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <span class="td-mono" style="color:var(--green);letter-spacing:2px">${e.code}</span>
+        <button class="code-copy" onclick="navigator.clipboard.writeText('${e.code}');this.textContent='✓';setTimeout(()=>this.textContent='Копіювати',1500)">Копіювати</button>
+      </div></td>
+      <td class="td-mono">${e.routes}</td>
+      <td><button class="toggle ${e.active?'on':'off'}" onclick="toggleExp(${i})"></button></td>
+      <td><button class="btn danger" onclick="if(confirm('Видалити?')){exps.splice(${i},1);renderExps()}">Видалити</button></td>
+    </tr>`).join('');
+}
+function renderQueue() {
+  const active = merchs.filter(m=>m.active);
+  document.getElementById('queueGrid').innerHTML = active.map(m=>`
+    <div class="queue-card">
+      <div class="queue-avatar" style="background:${m.color}">${m.name[0]}</div>
+      <div class="queue-name">${m.name}</div>
+      <div class="queue-sub">${m.phone}</div>
+      <div class="queue-stats">
+        <div class="queue-stat"><div class="queue-stat-val">${m.done}</div><div class="queue-stat-lbl">Оброблено</div></div>
+        <div class="queue-stat"><div class="queue-stat-val" style="color:var(--yellow)">${m.queue}</div><div class="queue-stat-lbl">В черзі</div></div>
+      </div>
+    </div>`).join('') || '<div style="color:var(--text3);font-size:13px;padding:20px">Немає активних товарознавців</div>';
+}
+function toggleMerch(i){merchs[i].active=!merchs[i].active;renderMerchs();}
+function toggleExp(i){exps[i].active=!exps[i].active;renderExps();}
+async function addMerch() {
+  const n=document.getElementById('mName').value.trim();
+  const p=document.getElementById('mPhone').value.trim();
+  const msg=document.getElementById('mMsg');
+  if (!n||!p){msg.className='msg err';msg.textContent='Заповніть всі поля';return;}
+  const colors=['#4f8ef7','#2dd4a0','#f5c842','#f5a442','#e879f9'];
+  const code='MRC-'+Math.random().toString(36).substr(2,4).toUpperCase();
+  const staffData = {name:n, phone:p, code, role:'merch', active:true, distId:'default'};
+  if (window.fbAddStaff) {
+    msg.className='msg ok'; msg.textContent='Зберігаю...';
+    const id = await window.fbAddStaff(staffData);
+    if (id) staffData.fbId = id;
+  }
+  merchs.push({...staffData, done:0, queue:0, color:colors[merchs.length%colors.length]});
+  CODES.merch.push(code);
+  msg.className='msg ok'; msg.textContent='✓ Додано! Код: '+code;
+  setTimeout(()=>{closeModal('newMerch');renderMerchs();},1500);
+}
+async function addExp() {
+  const n=document.getElementById('eName').value.trim();
+  const p=document.getElementById('ePhone').value.trim();
+  const msg=document.getElementById('eMsg');
+  if (!n||!p){msg.className='msg err';msg.textContent='Заповніть всі поля';return;}
+  const code='EXP-'+Math.random().toString(36).substr(2,4).toUpperCase();
+  const staffData = {name:n, phone:p, code, role:'exp', active:true, distId:'default'};
+  if (window.fbAddStaff) {
+    msg.className='msg ok'; msg.textContent='Зберігаю...';
+    const id = await window.fbAddStaff(staffData);
+    if (id) staffData.fbId = id;
+  }
+  exps.push({...staffData, routes:0});
+  CODES.exp.push(code);
+  msg.className='msg ok'; msg.textContent='✓ Додано! Код: '+code;
+  setTimeout(()=>{closeModal('newExp');renderExps();},1500);
+}
+function toggleArchive(){
+  const b=document.getElementById('archBody');
+  const t=document.getElementById('archToggle');
+  const show=b.style.display==='none';
+  b.style.display=show?'block':'none';
+  t.textContent=show?'▲ Сховати':'▼ Показати';
+}
+
+// ===== MERCH =====
+const merchPages = {
+  incoming:{title:'Вхідні повернення',sub:' / від магазинів'},
+  outgoing:{title:'Мої накладні',sub:' / статус від експедитора'},
+  mdashboard:{title:'Дашборд',sub:' / огляд'},
+};
+function merchPage(page, el) {
+  document.querySelectorAll('#view-merch .page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.merch-nav .nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('merch-'+page).classList.add('active');
+  if (el) el.classList.add('active');
+  document.getElementById('merchTopTitle').textContent = merchPages[page].title;
+  document.getElementById('merchTopSub').textContent = merchPages[page].sub;
+}
+
+// ===== DRIVER =====
+const TEST_RETURN = {num:'RET-M3K9A2',shop:'Продукти Петренка',meta:'3 позиції · Іваненко О.'};
+const TEST_INVOICE = {
+  num:'OUT-Q2W8E5', shop:'Мінімаркет Sunrise',
+  items:[
+    {barcode:'4820001111111',name:'Молоко 1л',qty:10},
+    {barcode:'4820002222222',name:'Хліб пшеничний',qty:5},
+    {barcode:'4820003333333',name:'Масло вершкове',qty:3},
+    {barcode:'4820004444444',name:'Вода 1.5л',qty:20},
+  ]
+};
+function drvScreen(id) {
+  document.querySelectorAll('#view-driver .screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('drv-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function drvSimScan(type) {
+  if (type==='return') { document.getElementById('retCode').value='RET-M3K9A2'; drvLoadReturn(); }
+  else { document.getElementById('editCode').value='OUT-Q2W8E5'; drvLoadEdit(); }
+}
+let currentInvoiceId = null;
+let currentInvoiceItems = [];
+
+async function drvLoadReturn() {
+  const code = document.getElementById('retCode').value.trim();
+  const msg = document.getElementById('retMsg');
+  if (!code) { msg.className='msg err'; msg.textContent='Введіть номер'; return; }
+  msg.className='msg ok'; msg.textContent='Завантажую...';
+
+  let inv = null;
+  if (window.fbLoadInvoice) {
+    inv = await window.fbLoadInvoice(code);
+  }
+
+  if (!inv) {
+    // Fallback — тестові дані
+    inv = {id: 'test-id', num: code, shopName: 'Магазин', items: [], status: 'pending'};
+  }
+
+  currentInvoiceId = inv.id;
+  msg.className = 'msg';
+  document.getElementById('retNum').textContent = inv.num;
+  document.getElementById('retShop').textContent = inv.shopName || 'Магазин';
+  document.getElementById('retMeta').textContent = (inv.items ? inv.items.length : 0) + ' позицій';
+  document.getElementById('retResult').classList.add('show');
+}
+
+function drvConfirmReturn() {
+  const confirm = () => drvScreen('success-return');
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      if (window.fbConfirmReturn && currentInvoiceId) {
+        await window.fbConfirmReturn(currentInvoiceId, lat, lng);
+      }
+      confirm();
+    }, confirm, { timeout: 5000 });
+  } else { confirm(); }
+}
+
+async function drvLoadEdit() {
+  const code = document.getElementById('editCode').value.trim();
+  const msg = document.getElementById('editMsg');
+  if (!code) { msg.className='msg err'; msg.textContent='Введіть номер'; return; }
+  msg.className='msg ok'; msg.textContent='Завантажую...';
+
+  let inv = null;
+  if (window.fbLoadInvoice) {
+    inv = await window.fbLoadInvoice(code);
+  }
+
+  if (!inv || !inv.items) {
+    msg.className='msg err'; msg.textContent='Накладну не знайдено. Перевірте номер.'; return;
+  }
+
+  currentInvoiceId = inv.id;
+  currentInvoiceItems = inv.items;
+  msg.className = 'msg';
+  document.getElementById('editInvMeta').textContent = inv.num + ' · ' + (inv.shopName || '');
+  document.getElementById('editTbody').innerHTML = inv.items.map((item,i) => `
+    <tr id="erow-${i}">
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--text3)">${item.barcode}</span></td>
+      <td><input class="edit-inp name" type="text" value="${item.name}" oninput="markChanged(${i})"></td>
+      <td><input class="edit-inp" type="number" value="${item.qty}" min="0" oninput="markChanged(${i})" style="text-align:center"></td>
+    </tr>`).join('');
+  drvScreen('edit-invoice');
+}
+
+function markChanged(i) { document.getElementById('erow-'+i).classList.add('changed'); }
+
+function drvSendCorr() {
+  const rows = document.querySelectorAll('#editTbody tr');
+  const items = Array.from(rows).map((row, i) => ({
+    barcode: currentInvoiceItems[i] ? currentInvoiceItems[i].barcode : '',
+    name: row.querySelector('.edit-inp.name').value,
+    qty: parseInt(row.querySelector('.edit-inp:not(.name)').value) || 0,
+    unit: currentInvoiceItems[i] ? currentInvoiceItems[i].unit : 'шт'
+  }));
+
+  const send = () => drvScreen('success-edit');
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      if (window.fbSendCorrections && currentInvoiceId) {
+        await window.fbSendCorrections(currentInvoiceId, items, lat, lng);
+      }
+      send();
+    }, send, { timeout: 5000 });
+  } else { send(); }
+}
+
+// ===== MODALS =====
+function openModal(id) {
+  document.getElementById('overlay-'+id).classList.add('show');
+}
+function closeModal(id) {
+  document.getElementById('overlay-'+id).classList.remove('show');
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show')); });
+</script>
+</body>
+</html>
