@@ -1271,6 +1271,7 @@ window.closeCamScanner = function() {
             <thead>
               <tr>
                 <th>Назва магазину</th>
+                <th>Код магазину</th>
                 <th>Телефон</th>
                 <th>Накладних</th>
                 <th>Остання активність</th>
@@ -2714,13 +2715,13 @@ window.closeCamScanner = function() {
     {id:'RET-Z9X7C3', shop:'Гастроном Центральний',    type:'return',     sum:680.00,  time:'14:15', geo:true,  status:'pending',   assignee:null,          items:[{n:'Цукор 1кг',qty:20,price:34.00}]},
   ];
   let distShops = [
-    {name:'Продукти Петренка',    phone:'+380 67 123 45 67', invoices:24, last:'сьогодні 10:23'},
-    {name:'Гастроном №1',         phone:'+380 50 234 56 78', invoices:18, last:'сьогодні 09:45'},
-    {name:'Мінімаркет Sunrise',   phone:'+380 63 345 67 89', invoices:11, last:'сьогодні 11:10'},
-    {name:'Продукти 24/7',        phone:'+380 67 456 78 90', invoices:7,  last:'вчора 18:30'},
-    {name:'Супермаркет Весна',    phone:'+380 50 567 89 01', invoices:32, last:'сьогодні 12:05'},
-    {name:'Продукти Іванова',     phone:'+380 63 678 90 12', invoices:15, last:'сьогодні 13:20'},
-    {name:'Гастроном Центральний',phone:'+380 67 789 01 23', invoices:8,  last:'сьогодні 14:15'},
+    {name:'Продукти Петренка',    phone:'+380 67 123 45 67', invoices:24, last:'сьогодні 10:23', shopCode:'SHOP-PT7K2M'},
+    {name:'Гастроном №1',         phone:'+380 50 234 56 78', invoices:18, last:'сьогодні 09:45', shopCode:'SHOP-GN9X4P'},
+    {name:'Мінімаркет Sunrise',   phone:'+380 63 345 67 89', invoices:11, last:'сьогодні 11:10', shopCode:'SHOP-SR3B6Q'},
+    {name:'Продукти 24/7',        phone:'+380 67 456 78 90', invoices:7,  last:'вчора 18:30',    shopCode:'SHOP-P2R1T7'},
+    {name:'Супермаркет Весна',    phone:'+380 50 567 89 01', invoices:32, last:'сьогодні 12:05', shopCode:'SHOP-VS8N0W'},
+    {name:'Продукти Іванова',     phone:'+380 63 678 90 12', invoices:15, last:'сьогодні 13:20', shopCode:'SHOP-IV4L5E'},
+    {name:'Гастроном Центральний',phone:'+380 67 789 01 23', invoices:8,  last:'сьогодні 14:15', shopCode:'SHOP-GC6M3A'},
   ];
 
   function showDistPanel() {
@@ -2728,7 +2729,29 @@ window.closeCamScanner = function() {
     document.getElementById('distPanel').style.display = 'block';
     document.getElementById('distPanelName').textContent = currentUser.name;
     document.getElementById('distPanelCode').textContent = currentUser.distCode || '—';
-    document.getElementById('distTrialInfo').textContent = '14 днів пробного періоду';
+    // Trial period warning — змінює колір за кількістю днів
+    (function() {
+      const regDate = currentUser.createdAt ? new Date(currentUser.createdAt) : new Date();
+      const daysUsed = Math.floor((Date.now() - regDate) / 86400000);
+      const daysLeft = Math.max(0, 14 - daysUsed);
+      const el = document.getElementById('distTrialInfo');
+      const elStyle = el.style;
+      if (daysLeft > 7) {
+        el.textContent = daysLeft + ' дн. пробного періоду';
+        elStyle.color = 'var(--success)';
+      } else if (daysLeft > 3) {
+        el.textContent = '⚠️ ' + daysLeft + ' дн. до кінця пробного';
+        elStyle.color = 'var(--warn)';
+      } else if (daysLeft > 0) {
+        el.textContent = '🔴 ' + daysLeft + ' дн. до кінця!';
+        elStyle.color = 'var(--danger)';
+        elStyle.fontWeight = '800';
+      } else {
+        el.textContent = '❌ Пробний період закінчився';
+        elStyle.color = 'var(--danger)';
+        elStyle.fontWeight = '800';
+      }
+    })();
     renderDistTab('staff');
   }
 
@@ -2844,13 +2867,18 @@ window.closeCamScanner = function() {
   function renderDistShops() {
     const tbody = document.getElementById('distShopsTable');
     if(!distShops.length) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text2);font-size:13px">
-        Магазини підключаються за кодом дистриб'ютора при реєстрації</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text2);font-size:13px">Магазини підключаються за кодом дистриб'ютора при реєстрації</td></tr>`;
       return;
     }
     tbody.innerHTML = distShops.map(s => `
       <tr>
         <td style="font-weight:600">${escHtml(s.name)}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-family:monospace;font-size:11px;font-weight:700;color:var(--success);background:var(--success-bg);padding:2px 7px;border-radius:6px;letter-spacing:1px">${s.shopCode||'—'}</span>
+            ${s.shopCode ? `<button onclick="navigator.clipboard.writeText('${s.shopCode||''}');this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0" title="Копіювати">📋</button>` : ''}
+          </div>
+        </td>
         <td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${escHtml(s.phone)}</td>
         <td style="text-align:center;font-family:var(--mono)">${s.invoices}</td>
         <td style="color:var(--text2);font-size:12px">${s.last}</td>
