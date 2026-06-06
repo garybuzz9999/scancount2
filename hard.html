@@ -36,7 +36,7 @@ body{font-family:var(--body);background:#0d0d0d;color:var(--ink);line-height:1.6
 .header-cta{height:34px;padding:0 14px;background:var(--accent);color:#fff;border:none;border-radius:4px;font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-decoration:none;display:flex;align-items:center;white-space:nowrap}
 
 /* ===== HERO ===== */
-.hero{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:110px 24px 64px;position:relative;overflow:hidden;width:100%;box-sizing:border-box}
+.hero{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:20px 24px 64px;position:relative;overflow:hidden;width:100%;box-sizing:border-box}
 .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
 .hero-tag{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:24px}
 .hero-title{font-family:var(--display);font-size:clamp(36px,8vw,120px);font-weight:900;color:var(--paper);line-height:0.9;margin-bottom:32px;letter-spacing:-2px}
@@ -182,7 +182,7 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
   .layout{grid-template-columns:1fr!important;margin-top:92px}
   .sidebar{display:none!important}
   .content{padding:24px 16px;max-width:100%;width:100%}
-  .hero{padding:110px 24px 48px}
+  .hero{padding:20px 24px 48px}
   .role-grid{grid-template-columns:1fr}
   .role-card:nth-child(odd){border-right:none}
   .role-card:nth-child(1),.role-card:nth-child(2){border-bottom:2px solid var(--ink)}
@@ -990,6 +990,23 @@ links.forEach(link => {
     const id = link.getAttribute('href').slice(1);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+
+<script>
+// Active nav highlight on scroll
+const navLinks = document.querySelectorAll('.header-nav a');
+const sections = document.querySelectorAll('section[id]');
+
+window.addEventListener('scroll', function() {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 120) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.style.color = a.getAttribute('href') === '#' + current ? '#fff' : '#aaa';
+    a.style.fontWeight = a.getAttribute('href') === '#' + current ? '800' : '700';
   });
 });
 </script>
