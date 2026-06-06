@@ -36,7 +36,7 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);line-heigh
 .header-cta{height:34px;padding:0 14px;background:var(--accent);color:#fff;border:none;border-radius:4px;font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-decoration:none;display:flex;align-items:center;white-space:nowrap}
 
 /* ===== HERO ===== */
-.hero{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:120px 24px 64px;position:relative;overflow:hidden}
+.hero{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:110px 24px 64px;position:relative;overflow:hidden}
 .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
 .hero-tag{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:24px}
 .hero-title{font-family:var(--display);font-size:clamp(36px,8vw,120px);font-weight:900;color:var(--paper);line-height:0.9;margin-bottom:32px;letter-spacing:-2px}
@@ -47,8 +47,8 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);line-heigh
 .chip span{width:6px;height:6px;border-radius:50%;background:var(--accent)}
 
 /* ===== NAV SIDEBAR ===== */
-.layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh;margin-top:56px}
-.sidebar{position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;background:var(--paper2);border-right:2px solid var(--ink);padding:32px 0}
+.layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh;margin-top:92px}
+.sidebar{position:sticky;top:92px;height:calc(100vh - 92px);overflow-y:auto;background:var(--paper2);border-right:2px solid var(--ink);padding:32px 0}
 .sidebar::-webkit-scrollbar{width:4px}
 .sidebar::-webkit-scrollbar-thumb{background:var(--paper3)}
 .sidebar-section{padding:0 24px;margin-bottom:8px}
@@ -179,10 +179,10 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
 .footer-copy{font-family:var(--mono);font-size:10px;color:#444;letter-spacing:1px}
 
 @media(max-width:768px){
-  .layout{grid-template-columns:1fr}
+  .layout{grid-template-columns:1fr;margin-top:92px}
   .sidebar{display:none}
-  .content{padding:32px 20px}
-  .hero{padding:80px 24px 48px}
+  .content{padding:24px 16px;max-width:100%}
+  .hero{padding:110px 24px 48px}
   .role-grid{grid-template-columns:1fr}
   .role-card:nth-child(odd){border-right:none}
   .role-card:nth-child(1),.role-card:nth-child(2){border-bottom:2px solid var(--ink)}
