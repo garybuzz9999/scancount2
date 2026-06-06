@@ -213,8 +213,8 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
   <p class="hero-desc">Повний мануал системи управління накладними для магазинів, дистриб'юторів і експедиторів. Тут є все — від першого сканування до API інтеграції.</p>
   <div class="hero-chips">
     <div class="chip"><span></span>scancount.online</div>
-    <div class="chip"><span></span>app.scancount.online</div>
-    <div class="chip"><span></span>api.scancount.online</div>
+    <div class="chip"><span></span>scancount.online/app.html</div>
+    
     <div class="chip"><span></span>Firebase Firestore</div>
     <div class="chip"><span></span>Cloudflare Workers</div>
   </div>
@@ -284,19 +284,19 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
         <div class="role-icon">🏭</div>
         <div class="role-name">Дистриб'ютор</div>
         <div class="role-desc">Кабінет бухгалтера для управління персоналом, накладними, чергою товарознавців і реквізитами.</div>
-        <div class="role-access">app.scancount.online <span class="badge pro">PRO</span></div>
+        <div class="role-access">scancount.online/app.html <span class="badge pro">PRO</span></div>
       </div>
       <div class="role-card">
         <div class="role-icon">📋</div>
         <div class="role-name">Товарознавець</div>
         <div class="role-desc">Отримує накладні в чергу, звіряє повернення і коригування від експедиторів, вносить в свою облікову систему.</div>
-        <div class="role-access">app.scancount.online <span class="badge pro">PRO</span></div>
+        <div class="role-access">scancount.online/app.html <span class="badge pro">PRO</span></div>
       </div>
       <div class="role-card">
         <div class="role-icon">🚗</div>
         <div class="role-name">Експедитор</div>
         <div class="role-desc">Мобільний інтерфейс для сканування накладних на місці, підтвердження або коригування з геолокацією.</div>
-        <div class="role-access">app.scancount.online <span class="badge pro">PRO</span></div>
+        <div class="role-access">scancount.online/app.html <span class="badge pro">PRO</span></div>
       </div>
     </div>
   </section>
@@ -515,14 +515,14 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
   <section class="section" id="dist-setup">
     <div class="section-number">// 04</div>
     <h2 class="section-title">Для<br><span>дистриб'ютора</span></h2>
-    <p class="section-lead">Кабінет бухгалтера на app.scancount.online — центр управління всією логістикою дистриб'ютора.</p>
+    <p class="section-lead">Кабінет бухгалтера на scancount.online/app.html — центр управління всією логістикою дистриб'ютора.</p>
 
     <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:24px;letter-spacing:-0.5px">Початкове налаштування</h3>
     <div class="steps">
       <div class="step">
         <div class="step-num">01</div>
         <div class="step-body">
-          <div class="step-title">Відкрийте app.scancount.online</div>
+          <div class="step-title">Відкрийте scancount.online/app.html</div>
           <div class="step-desc">Виберіть роль <strong>Бухгалтер</strong> → введіть код <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">BUH-XXXX</code> або увійдіть як адміністратор.</div>
         </div>
       </div>
@@ -583,7 +583,7 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
     <div class="demo-frame">
       <div class="demo-bar">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-        <span class="demo-url">app.scancount.online — Черга</span>
+        <span class="demo-url">scancount.online/app.html — Черга</span>
       </div>
       <div class="demo-content">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
@@ -636,7 +636,7 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
       <div class="step">
         <div class="step-num">01</div>
         <div class="step-body">
-          <div class="step-title">Відкрийте app.scancount.online</div>
+          <div class="step-title">Відкрийте scancount.online/app.html</div>
           <div class="step-desc">Виберіть роль <strong>🚗 Експедитор</strong>.</div>
         </div>
       </div>
@@ -721,7 +721,7 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
         <div class="step-num">01</div>
         <div class="step-body">
           <div class="step-title">Увійдіть як Товарознавець</div>
-          <div class="step-desc">Відкрийте app.scancount.online → виберіть <strong>📋 Товарознавець</strong> → введіть код <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">MRC-XXXX</code>.</div>
+          <div class="step-desc">Відкрийте scancount.online/app.html → виберіть <strong>📋 Товарознавець</strong> → введіть код <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">MRC-XXXX</code>.</div>
         </div>
       </div>
       <div class="step">
@@ -772,7 +772,7 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
     <h2 class="section-title">API<br><span>інтеграція</span></h2>
     <p class="section-lead">Для адміністраторів облікових систем (1С, SAP, Excel, власні рішення). Один ендпоінт — і накладні автоматично потрапляють в ScanCount.</p>
 
-    <div class="info-box note"><strong>Base URL:</strong> <code style="font-family:var(--mono)">https://scancount-api.scancount-service.workers.dev</code></div>
+    <div class="info-box note"><strong>Base URL:</strong> <code style="font-family:var(--mono)">https://scancount.online/api</code></div>
 
     <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:32px 0 16px;letter-spacing:-0.5px" id="api-auth">Автентифікація</h3>
     <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:16px">Всі POST і PATCH запити потребують заголовку <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">X-API-Key</code>. Ключ генерується в кабінеті бухгалтера → Налаштування → API ключ.</p>
@@ -892,7 +892,7 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
         <span class="comment">// Відправка накладної в ScanCount при друці в 1С</span><br>
         <span class="cmd">async function sendInvoiceToScanCount(invoice) {</span><br>
         <span class="cmd">  const response = await fetch(</span><br>
-        <span class="cmd">    'https://scancount-api.scancount-service.workers.dev/v1/invoices',</span><br>
+        <span class="cmd">    'https://scancount.online/api/v1/invoices',</span><br>
         <span class="cmd">    {</span><br>
         <span class="cmd">      method: 'POST',</span><br>
         <span class="cmd">      headers: {</span><br>
@@ -956,7 +956,7 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
   <div class="footer-sub">// автоматизація документообігу</div>
   <div class="footer-links">
     <a href="https://scancount.online">scancount.online</a>
-    <a href="https://app.scancount.online">app.scancount.online</a>
+    <a href="https://scancount.online/app.html">scancount.online/app.html</a>
     <a href="mailto:scancount.service@gmail.com">scancount.service@gmail.com</a>
   </div>
   <div class="footer-copy">© 2026 SCANCOUNT · ALL RIGHTS RESERVED</div>
