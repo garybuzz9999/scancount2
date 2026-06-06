@@ -72,6 +72,10 @@
   
   // ===== КАБІНЕТ МАГАЗИНУ =====
   let shopDists = [];
+  try {
+    const savedDists = localStorage.getItem('sc_shop_dists');
+    if(savedDists) shopDists = JSON.parse(savedDists);
+  } catch(e) {}
   let pendingShopDist = null;
 
   function showShopPanel() {
@@ -79,14 +83,18 @@
     document.getElementById('distPanel').style.display = 'none';
     document.getElementById('shopPanel').style.display = 'block';
     document.getElementById('shopFolderPanel').style.display = 'none';
+    if(document.getElementById('shopScanPanel')) document.getElementById('shopScanPanel').style.display = 'none';
+    if(document.getElementById('shopSuccessPanel')) document.getElementById('shopSuccessPanel').style.display = 'none';
     if(currentUser) {
       document.getElementById('shopPanelName').textContent = currentUser.name || 'Мій магазин';
       document.getElementById('shopPanelAvatar').textContent = (currentUser.name || 'М')[0].toUpperCase();
-      // Генеруємо код магазину якщо немає
       if (!currentUser.shopCode) {
         currentUser.shopCode = generateShopCode();
+        localStorage.setItem('sc_user', JSON.stringify(currentUser));
       }
-      renderShopCode();
+      // Показуємо код магазину
+      document.getElementById('shopCodeDisplay').textContent = currentUser.shopCode;
+      document.getElementById('shopCodeBlock').style.display = 'block';
     }
     renderShopDists();
   }
@@ -1873,7 +1881,8 @@
     manualPanel.classList.remove('show');
     barcodeInput.value = '';
     pendingBarcode = '';
-    barcodeInput.focus();
+    restoreSession();
+  barcodeInput.focus();
   }
 
   const UNITS = ['шт','кг','г','л','мл','м','см','уп','пар','компл','box'];
@@ -1998,6 +2007,8 @@
 
   function setUser(user) {
     currentUser = user;
+    if(user) localStorage.setItem('sc_user', JSON.stringify(user));
+    else localStorage.removeItem('sc_user');
     updateAccessUI();
     if(user && user.type === 'distributor') {
       setTimeout(() => showDistPanel(), 300);
@@ -2005,6 +2016,20 @@
     if(user && user.type === 'shop') {
       setTimeout(() => showShopPanel(), 300);
     }
+  }
+
+  // Відновлюємо сесію при завантаженні
+  function restoreSession() {
+    try {
+      const saved = localStorage.getItem('sc_user');
+      if(saved) {
+        const user = JSON.parse(saved);
+        currentUser = user;
+        updateAccessUI();
+        if(user.type === 'distributor') showDistPanel();
+        if(user.type === 'shop') showShopPanel();
+      }
+    } catch(e) {}
   }
 
   function hasDistAccess() {
@@ -2906,6 +2931,7 @@
 
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
 
+  restoreSession();
   barcodeInput.focus();
 </script>
 
