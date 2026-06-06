@@ -1209,7 +1209,7 @@ window.closeCamScanner = function() {
             <thead>
               <tr>
                 <th>Ім'я</th>
-                <th>Email</th>
+                <th>Телефон</th><th>Код входу</th>
                 <th>Роль</th>
                 <th style="text-align:center">Статус</th>
                 <th></th>
@@ -1808,8 +1808,8 @@ window.closeCamScanner = function() {
       <input id="staffName" type="text" placeholder="Іваненко Олег">
     </div>
     <div class="modal-field">
-      <label>Email</label>
-      <input id="staffEmail" type="email" placeholder="ivanen@company.ua">
+      <label>Телефон</label>
+      <input id="staffPhone" type="tel" placeholder="+380 XX XXX XX XX">
     </div>
     <div class="modal-field">
       <label>Роль</label>
@@ -2698,11 +2698,11 @@ window.closeCamScanner = function() {
 
   // ── ПАНЕЛЬ ДИСТРИБ'ЮТОРА ──
   let distStaff = [
-    {name:'Іваненко Олег',   email:'ivanen@dist.ua',    role:'merchandise', active:true,  color:'#3b7cf4', processed:12},
-    {name:'Петренко Василь', email:'petrenko@dist.ua',  role:'merchandise', active:true,  color:'#22c55e', processed:18},
-    {name:'Сидоренко Марія', email:'sydorenko@dist.ua', role:'merchandise', active:false, color:'#f59e0b', processed:9},
-    {name:'Коваль Дмитро',   email:'koval@dist.ua',     role:'expeditor',   active:true,  color:'#e879f9', processed:0},
-    {name:'Мельник Ірина',   email:'melnyk@dist.ua',    role:'expeditor',   active:true,  color:'#fb923c', processed:0},
+    {name:'Іваненко Олег',   phone:'+380671234561', role:'merchandise', active:true,  color:'#3b7cf4', processed:12, staffCode:'STAFF-OL7K2M'},
+    {name:'Петренко Василь', phone:'+380671234562', role:'merchandise', active:true,  color:'#22c55e', processed:18, staffCode:'STAFF-VA9X4P'},
+    {name:'Сидоренко Марія', phone:'+380671234563', role:'merchandise', active:false, color:'#f59e0b', processed:9,  staffCode:'STAFF-MA3B6Q'},
+    {name:'Коваль Дмитро',   phone:'+380671234564', role:'expeditor',   active:true,  color:'#e879f9', processed:0,  staffCode:'STAFF-DM8R1T'},
+    {name:'Мельник Ірина',   phone:'+380671234565', role:'expeditor',   active:true,  color:'#fb923c', processed:0,  staffCode:'STAFF-IR5N0W'},
   ];
   let distInvoices = [
     {id:'RET-M3K9A2', shop:'Продукти Петренка',      type:'return',     sum:868.50,  time:'10:23', geo:true,  status:'pending',   assignee:'Іваненко О.', items:[{n:'Молоко 1л',qty:10,price:45.90},{n:'Хліб пшеничний',qty:5,price:28.50},{n:'Масло вершкове',qty:3,price:89.00}]},
@@ -2755,8 +2755,7 @@ window.closeCamScanner = function() {
   function renderDistStaff() {
     const tbody = document.getElementById('staffTable');
     if(!distStaff.length) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text2);font-size:13px">
-        Немає співробітників — додайте першого</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text2);font-size:13px">Немає співробітників — додайте першого</td></tr>`;
       return;
     }
     tbody.innerHTML = distStaff.map((s,i) => `
@@ -2765,7 +2764,13 @@ window.closeCamScanner = function() {
           <div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">${s.name.charAt(0)}</div>
           ${escHtml(s.name)}
         </td>
-        <td style="color:var(--text2);font-size:12px">${escHtml(s.email)}</td>
+        <td style="color:var(--text2);font-size:12px">${escHtml(s.phone||'')}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-bg);padding:2px 8px;border-radius:6px;letter-spacing:1px">${s.staffCode||'—'}</span>
+            ${s.staffCode ? `<button onclick="navigator.clipboard.writeText('${s.staffCode||''}');this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" style="background:none;border:none;cursor:pointer;font-size:13px;padding:0" title="Копіювати код">📋</button>` : ''}
+          </div>
+        </td>
         <td>${s.role === 'merchandise' ? '<span style="background:var(--accent-bg);color:var(--accent);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">📋 Товарознавець</span>' : '<span style="background:var(--success-bg);color:var(--success);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">🚗 Експедитор</span>'}</td>
         <td style="text-align:center">
           <button class="staff-toggle ${s.active ? 'on' : 'off'}" onclick="toggleStaff(${i})" title="${s.active ? 'Активний — клік для паузи' : 'Неактивний — клік для активації'}">
@@ -2863,7 +2868,7 @@ window.closeCamScanner = function() {
     });
     document.getElementById('modalAddStaff').style.display = 'block';
     document.getElementById('staffName').value = '';
-    document.getElementById('staffEmail').value = '';
+    document.getElementById('staffPhone').value = '';
     document.getElementById('staffRole').value = 'merchandise';
     document.getElementById('staffMsg').className = 'modal-msg';
     document.getElementById('staffMsg').textContent = '';
@@ -2871,13 +2876,14 @@ window.closeCamScanner = function() {
 
   function addStaff() {
     const name  = document.getElementById('staffName').value.trim();
-    const email = document.getElementById('staffEmail').value.trim();
+    const phone = document.getElementById('staffPhone').value.trim();
     const role  = document.getElementById('staffRole').value;
     if(!name)  return showModalMsg('staffMsg','err','Введіть ім\'я');
-    if(!email || !email.includes('@')) return showModalMsg('staffMsg','err','Введіть коректний email');
-    distStaff.push({ name, email, role, active: true, color: staffColors[distStaff.length % staffColors.length], processed: 0 });
-    showModalMsg('staffMsg','ok','✓ Співробітника додано!');
-    setTimeout(() => { closeModal(); renderDistStaff(); renderDistQueue(); }, 1200);
+    if(!phone) return showModalMsg('staffMsg','err','Введіть телефон');
+    const staffCode = 'STAFF-' + Math.random().toString(36).substr(2,6).toUpperCase();
+    distStaff.push({ name, phone, role, active: true, color: staffColors[distStaff.length % staffColors.length], processed: 0, staffCode });
+    showModalMsg('staffMsg','ok','✓ Додано! Код: ' + staffCode);
+    setTimeout(() => { closeModal(); renderDistStaff(); renderDistQueue(); }, 1800);
   }
 
   function toggleStaff(idx) {
