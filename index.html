@@ -82,6 +82,11 @@
     if(currentUser) {
       document.getElementById('shopPanelName').textContent = currentUser.name || 'Мій магазин';
       document.getElementById('shopPanelAvatar').textContent = (currentUser.name || 'М')[0].toUpperCase();
+      // Генеруємо код магазину якщо немає
+      if (!currentUser.shopCode) {
+        currentUser.shopCode = generateShopCode();
+      }
+      renderShopCode();
     }
     renderShopDists();
   }
@@ -102,6 +107,22 @@
     document.getElementById('shopPanel').style.display = 'none';
     document.getElementById('shopFolderPanel').style.display = 'none';
     document.getElementById('mainContent').style.display = 'block';
+  }
+
+
+  function renderShopCode() {
+    const code = currentUser ? (currentUser.shopCode || generateShopCode()) : null;
+    if (!code) return;
+    if (currentUser) currentUser.shopCode = code;
+    document.getElementById('shopCodeDisplay').textContent = code;
+    document.getElementById('shopCodeBlock').style.display = 'block';
+  }
+
+  function copyShopCode() {
+    const code = document.getElementById('shopCodeDisplay').textContent;
+    navigator.clipboard.writeText(code);
+    event.target.textContent = '✓';
+    setTimeout(()=>event.target.textContent='Копіювати', 2000);
   }
 
   function renderShopDists() {
@@ -157,24 +178,25 @@
 
   function openShopModal(type) {
     const overlay = document.getElementById('shopOverlay');
-    const content = document.getElementById('shopModalContent');
+    const cnt = document.getElementById('shopModalContent');
     overlay.style.display = 'flex';
     if (type === 'addDist') {
-      content.innerHTML = `
+      foundDist = null;
+      cnt.innerHTML = `
         <button onclick="closeShopModal()" style="float:right;background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer">✕</button>
-        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px">+ Додати дистриб'ютора</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Оберіть зі списку та введіть код</div>
-        <div style="margin-bottom:14px" id="shopDistSelectList">
-          ${availableDists.map((d,i)=>`
-            <div onclick="selectShopDist(${i})" id="sdist-${i}" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);margin-bottom:8px">
-              <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0">🏭</div>
-              <div><div style="font-size:13px;font-weight:700;color:var(--text)">${d.name}</div><div style="font-size:11px;color:var(--text3)">${d.city}</div></div>
-            </div>`).join('')}
-        </div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">+ Підключити дистриб'ютора</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px">Введіть код який надав вам дистриб'ютор</div>
         <div style="margin-bottom:14px">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Код від дистриб'ютора</div>
-          <input id="shopDistCodeInput" type="text" placeholder="XXXX-XXXX" oninput="this.value=this.value.toUpperCase()"
-            style="width:100%;height:48px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);padding:0 14px;font-size:15px;color:var(--text);outline:none">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Код дистриб'ютора</div>
+          <input id="shopDistCodeInput" type="text" placeholder="DIST-XXXXXX"
+            oninput="this.value=this.value.toUpperCase();debounceDistSearch()"
+            onkeydown="if(event.key==='Enter')submitShopDist()"
+            style="width:100%;height:52px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);padding:0 14px;font-size:16px;font-family:monospace;letter-spacing:2px;color:var(--text);outline:none">
+        </div>
+        <div id="shopDistPreview" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Дистриб'ютор знайдений</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)" id="distPreviewName"></div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px" id="distPreviewCity"></div>
         </div>
         <div id="shopDistAddMsg" style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px;display:none"></div>
         <button onclick="submitShopDist()" style="width:100%;height:50px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">Підключити</button>
@@ -192,15 +214,71 @@
     if(el) { el.style.background='rgba(37,99,235,0.08)'; el.style.borderColor='var(--accent)'; }
   }
 
-  function submitShopDist() {
+  let foundDist = null;
+  let distSearchTimer = null;
+
+  function debounceDistSearch() {
+    clearTimeout(distSearchTimer);
+    distSearchTimer = setTimeout(async () => {
+      const code = document.getElementById('shopDistCodeInput')?.value.trim();
+      if (!code || code.length < 6) return;
+      const preview = document.getElementById('shopDistPreview');
+      const msg = document.getElementById('shopDistAddMsg');
+      msg.style.display='block'; msg.style.background='#e8f0ff'; msg.style.color='#2563eb'; msg.textContent='Шукаю...';
+      const dist = window.fbCheckDistCode ? await window.fbCheckDistCode(code) : null;
+      if (dist) {
+        foundDist = dist;
+        msg.style.display='none';
+        document.getElementById('distPreviewName').textContent = dist.name || 'Дистриб'ютор';
+        document.getElementById('distPreviewCity').textContent = dist.city || '';
+        preview.style.display='block';
+      } else {
+        foundDist = null;
+        preview.style.display='none';
+        msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent='Код не знайдено';
+      }
+    }, 700);
+  }
+
+  async function submitShopDist() {
     const code = document.getElementById('shopDistCodeInput').value.trim();
     const msg = document.getElementById('shopDistAddMsg');
-    if (!pendingShopDist) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent='Оберіть дистриб'ютора зі списку'; return; }
-    if (!code || code.length < 4) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent='Введіть код від дистриб'ютора'; return; }
-    if (shopDists.find(d=>d.id===pendingShopDist.id)) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent='Цей дистриб'ютор вже підключений'; return; }
-    shopDists.push({...pendingShopDist, code, returns:0, corrections:0, incoming:0});
-    msg.style.display='block'; msg.style.background='#d1fae5'; msg.style.color='#059669'; msg.textContent='✓ Підключено!';
-    setTimeout(()=>{ closeShopModal(); renderShopDists(); },1000);
+    if (!code || code.length < 4) {
+      msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626';
+      msg.textContent='Введіть код від дистриб'ютора'; return;
+    }
+    if (!foundDist && window.fbCheckDistCode) {
+      msg.style.display='block'; msg.style.background='#e8f0ff'; msg.style.color='#2563eb'; msg.textContent='Перевіряю...';
+      foundDist = await window.fbCheckDistCode(code);
+    }
+    if (!foundDist) {
+      msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626';
+      msg.textContent='Код не знайдено. Перевірте і спробуйте ще раз.'; return;
+    }
+    if (shopDists.find(d=>d.id===foundDist.id)) {
+      msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626';
+      msg.textContent='Цей дистриб'ютор вже підключений'; return;
+    }
+    // Зберігаємо код магазину в Firebase як підключення
+    const shopCode = currentUser ? (currentUser.shopCode || generateShopCode()) : generateShopCode();
+    if (window.fbSaveShopConnection) {
+      await window.fbSaveShopConnection(foundDist.id, shopCode, currentUser);
+    }
+    shopDists.push({
+      id: foundDist.id,
+      name: foundDist.name || 'Дистриб'ютор',
+      city: foundDist.city || '',
+      code, returns:0, corrections:0, incoming:0
+    });
+    if (currentUser) { currentUser.hasDistAccess = true; currentUser.shopCode = shopCode; }
+    msg.style.display='block'; msg.style.background='#d1fae5'; msg.style.color='#059669';
+    msg.textContent='✓ Підключено! Платні функції активовано.';
+    foundDist = null;
+    setTimeout(()=>{ closeShopModal(); renderShopDists(); renderShopCode(); },1200);
+  }
+
+  function generateShopCode() {
+    return 'SHOP-' + Math.random().toString(36).substr(2,6).toUpperCase();
   }
 
 
@@ -993,6 +1071,16 @@
           <div style="font-size:11px;color:var(--text3)">Кабінет магазину</div>
         </div>
         <button onclick="goToRecount()" style="height:32px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2)">📋 Переоблік</button>
+      </div>
+
+      <!-- Код магазину -->
+      <div id="shopCodeBlock" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Ваш код магазину</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--green);letter-spacing:3px;flex:1" id="shopCodeDisplay">SHOP-XXXXXX</div>
+          <button onclick="copyShopCode()" style="height:28px;padding:0 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface3);color:var(--text2)">Копіювати</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Повідомте цей код дистриб'ютору для ідентифікації</div>
       </div>
 
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px">Безкоштовно назавжди <span style="font-size:9px;font-weight:800;background:#d1fae5;color:#059669;padding:2px 6px;border-radius:20px;margin-left:6px">FREE</span></div>
