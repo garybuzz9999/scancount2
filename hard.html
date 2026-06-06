@@ -25,16 +25,18 @@ html{scroll-behavior:smooth}
 body{font-family:var(--body);background:var(--paper);color:var(--ink);line-height:1.6;overflow-x:hidden}
 
 /* ===== HEADER ===== */
-.site-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--ink);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between}
-.header-logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--paper);letter-spacing:2px;text-transform:uppercase}
+.site-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--ink);padding:0 20px;height:auto;min-height:56px;display:flex;flex-direction:column;align-items:stretch}
+.header-top{display:flex;align-items:center;justify-content:space-between;height:56px}
+.header-logo{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--paper);letter-spacing:2px;text-transform:uppercase}
 .header-logo span{color:var(--accent)}
-.header-nav{display:flex;gap:24px;align-items:center}
-.header-nav a{font-size:11px;font-weight:600;color:#888;text-decoration:none;text-transform:uppercase;letter-spacing:1px;transition:color 0.2s}
+.header-nav{display:flex;flex-direction:column;padding:8px 0 12px;gap:0;border-top:1px solid rgba(255,255,255,0.08)}
+.header-nav a{font-size:15px;font-weight:600;color:#aaa;text-decoration:none;text-transform:uppercase;letter-spacing:1px;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,0.05);transition:color 0.2s}
+.header-nav a:last-child{border-bottom:none}
 .header-nav a:hover{color:var(--paper)}
-.header-cta{height:32px;padding:0 16px;background:var(--accent);color:#fff;border:none;border-radius:4px;font-family:var(--body);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-decoration:none;display:flex;align-items:center}
+.header-cta{height:38px;padding:0 18px;background:var(--accent);color:#fff;border:none;border-radius:4px;font-family:var(--body);font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-decoration:none;display:flex;align-items:center}
 
 /* ===== HERO ===== */
-.hero{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:80px 48px 64px;position:relative;overflow:hidden}
+.hero{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:220px 48px 64px;position:relative;overflow:hidden}
 .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
 .hero-tag{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:24px}
 .hero-title{font-family:var(--display);font-size:clamp(48px,8vw,120px);font-weight:900;color:var(--paper);line-height:0.9;margin-bottom:32px;letter-spacing:-2px}
@@ -194,7 +196,10 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
 
 <!-- HEADER -->
 <header class="site-header">
-  <div class="header-logo">Scan<span>Count</span></div>
+  <div class="header-top">
+    <div class="header-logo">Scan<span>Count</span></div>
+    <a href="https://scancount.online" class="header-cta">Відкрити →</a>
+  </div>
   <nav class="header-nav">
     <a href="#overview">Огляд</a>
     <a href="#shop">Магазин</a>
@@ -202,7 +207,6 @@ footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
     <a href="#expeditor">Експедитор</a>
     <a href="#api">API</a>
   </nav>
-  <a href="https://scancount.online" class="header-cta">Відкрити →</a>
 </header>
 
 <!-- HERO -->
