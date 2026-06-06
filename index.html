@@ -105,20 +105,20 @@
     window.fbRegisterShop = async function(name, phone, owner, email, pass) {
       const msgId = 'rShopMsg';
       try {
-        showModalMsg(msgId, 'ok', 'Реєструємо...');
+        window.showModalMsg(msgId, 'ok', 'Реєструємо...');
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
         const shopCode = generateCode('SHOP');
         const profile = { type:'shop', name, email, phone, owner, shopCode,
                           distCode: null, hasDistAccess: false, uid: cred.user.uid };
         await saveUserProfile(cred.user.uid, profile);
-        showModalMsg(msgId, 'ok', '✓ Зареєстровано! Доступний переоблік і цінники.');
-        setTimeout(() => closeModal(), 1800);
+        window.showModalMsg(msgId, 'ok', '✓ Зареєстровано! Доступний переоблік і цінники.');
+        setTimeout(() => window.closeModal(), 1800);
       } catch(e) {
         const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
                   : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
                   : e.message;
-        showModalMsg(msgId, 'err', msg);
+        window.showModalMsg(msgId, 'err', msg);
       }
     };
 
@@ -126,36 +126,36 @@
     window.fbRegisterDist = async function(name, contact, phone, email, pass, city) {
       const msgId = 'rDistMsg';
       try {
-        showModalMsg(msgId, 'ok', 'Реєструємо...');
+        window.showModalMsg(msgId, 'ok', 'Реєструємо...');
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
         const distCode = generateCode('DIST');
         const profile = { type:'distributor', name, email, phone, contact, city: city||'',
                           distCode, hasDistAccess: true, uid: cred.user.uid };
         await saveUserProfile(cred.user.uid, profile);
-        showModalMsg(msgId, 'ok', '✓ Зареєстровано! 14 днів безкоштовно. Ваш код: ' + distCode);
-        setTimeout(() => closeModal(), 2500);
+        window.showModalMsg(msgId, 'ok', '✓ Зареєстровано! 14 днів безкоштовно. Ваш код: ' + distCode);
+        setTimeout(() => window.closeModal(), 2500);
       } catch(e) {
         const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
                   : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
                   : e.message;
-        showModalMsg(msgId, 'err', msg);
+        window.showModalMsg(msgId, 'err', msg);
       }
     };
 
     // ── ВХІД ────────────────────────────────────────────────────
     window.fbLogin = async function(email, pass) {
       try {
-        showModalMsg('lMsg', 'ok', 'Входимо...');
+        window.showModalMsg('lMsg', 'ok', 'Входимо...');
         await signInWithEmailAndPassword(auth, email, pass);
-        showModalMsg('lMsg', 'ok', '✓ Вхід успішний!');
-        setTimeout(() => closeModal(), 1200);
+        window.showModalMsg('lMsg', 'ok', '✓ Вхід успішний!');
+        setTimeout(() => window.closeModal(), 1200);
       } catch(e) {
         const msg = e.code === 'auth/user-not-found'  ? 'Акаунт не знайдено'
                   : e.code === 'auth/wrong-password'  ? 'Невірний пароль'
                   : e.code === 'auth/invalid-credential' ? 'Невірний email або пароль'
                   : e.message;
-        showModalMsg('lMsg', 'err', msg);
+        window.showModalMsg('lMsg', 'err', msg);
       }
     };
 
@@ -2952,6 +2952,7 @@
     document.getElementById('modalOverlay').classList.remove('show');
     clearModalMsgs();
   }
+  window.closeModal = closeModal;
 
   function overlayClick(e) {
     if(e.target === document.getElementById('modalOverlay')) closeModal();
@@ -3010,6 +3011,7 @@
     el.className = 'modal-msg ' + type;
     el.textContent = text;
   }
+  window.showModalMsg = showModalMsg;
 
   function selectRegType(type) {
     document.getElementById('regTypeSelect').style.display = type ? 'block' : 'block';
