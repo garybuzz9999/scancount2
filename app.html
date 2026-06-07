@@ -286,11 +286,15 @@ tbody tr:hover td{background:var(--surface2)}
     // Завантажити накладну по номеру
     window.fbLoadInvoice = async function(num) {
       try {
-        const q = query(collection(db, "invoices"), where("num", "==", num));
+        // Спочатку шукаємо по ID документа (RET-XXXXXX є ID)
+        const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+        const docSnap = await getDoc(doc(db, "invoices", num));
+        if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
+        // Fallback — пошук по полю id
+        const q = query(collection(db, "invoices"), where("id", "==", num));
         const snap = await getDocs(q);
-        if (snap.empty) return null;
-        const d = snap.docs[0];
-        return { id: d.id, ...d.data() };
+        if (!snap.empty) { const d = snap.docs[0]; return { id: d.id, ...d.data() }; }
+        return null;
       } catch(e) {
         console.error("Помилка завантаження:", e);
         return null;
@@ -301,8 +305,9 @@ tbody tr:hover td{background:var(--surface2)}
     window.fbConfirmReturn = async function(invoiceId, lat, lng) {
       try {
         await updateDoc(doc(db, "invoices", invoiceId), {
-          status: "confirmed",
-          confirmedAt: serverTimestamp(),
+          status: "picked_up",
+          pickedUpAt: serverTimestamp(),
+          expeditorConfirmed: true,
           geo: { lat, lng }
         });
         return true;
@@ -396,11 +401,13 @@ tbody tr:hover td{background:var(--surface2)}
     // Завантажити накладну по номеру (для експедитора)
     window.fbLoadInvoice = async function(num) {
       try {
-        const q = query(collection(db, "invoices"), where("num", "==", num));
+        const { getDoc: gd } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+        const docSnap = await gd(doc(db, "invoices", num));
+        if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
+        const q = query(collection(db, "invoices"), where("id", "==", num));
         const snap = await getDocs(q);
-        if (snap.empty) return null;
-        const d = snap.docs[0];
-        return { id: d.id, ...d.data() };
+        if (!snap.empty) { const d = snap.docs[0]; return { id: d.id, ...d.data() }; }
+        return null;
       } catch(e) { console.error(e); return null; }
     };
 
@@ -919,15 +926,14 @@ tbody tr:hover td{background:var(--surface2)}
     <div class="content">
       <div class="page active" id="merch-incoming">
         <div class="card">
-          <div class="card-header"><span class="card-title">↩ Повернення від магазинів</span><span class="card-sub">Підтверджені експедитором</span></div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Номер</th><th>Магазин</th><th>Експедитор</th><th>Позицій</th><th>Час</th><th>Статус</th><th></th></tr></thead>
-            <tbody>
-              <tr><td class="td-mono">RET-M3K9A2</td><td class="td-name">Продукти Петренка</td><td>Коваль Д.</td><td class="td-mono">3</td><td class="td-mono">14:32</td><td><span class="badge pending">⏳ Нова</span></td><td><button class="btn" onclick="openModal('mViewInv')">Розглянути</button></td></tr>
-              <tr><td class="td-mono">RET-N5R3T7</td><td class="td-name">Гастроном №1</td><td>Мельник І.</td><td class="td-mono">2</td><td class="td-mono">13:20</td><td><span class="badge pending">⏳ Нова</span></td><td><button class="btn" onclick="openModal('mViewInv')">Розглянути</button></td></tr>
-              <tr><td class="td-mono">RET-B7X1P4</td><td class="td-name">Супермаркет Весна</td><td>Коваль Д.</td><td class="td-mono">5</td><td class="td-mono">вчора</td><td><span class="badge confirmed">✓ Оброблено</span></td><td><button class="btn" onclick="openModal('mViewInv')">Переглянути</button></td></tr>
-            </tbody>
-          </table></div>
+          <div class="card-header">
+            <span class="card-title">↩ Повернення від магазинів</span>
+            <span class="card-sub">Підтверджені експедитором</span>
+            <button class="btn" onclick="loadMerchInvoices()" style="margin-left:auto">🔄 Оновити</button>
+          </div>
+          <div id="merchInvoicesWrap">
+            <div style="text-align:center;padding:40px;color:#888;font-size:14px">Завантаження...</div>
+          </div>
         </div>
       </div>
       <div class="page" id="merch-outgoing">
@@ -1274,6 +1280,7 @@ function doLogin() {
       if (currentRole==='buh') {
         document.getElementById('view-buh').classList.add('active');
       } else if (currentRole==='merch') {
+        setTimeout(loadMerchInvoices, 500);
         const m = merchs.find(x=>x.code===code);
         if (m) { document.getElementById('merchName').textContent=m.name; document.getElementById('merchAvatar').textContent=m.name[0]; }
         document.getElementById('view-merch').classList.add('active');
@@ -1352,6 +1359,83 @@ function buhPage(page, el) {
   if (page==='expeditors') renderExps();
   if (page==='queue') renderQueue();
 }
+async function loadMerchInvoices() {
+  const wrap = document.getElementById('merchInvoicesWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-size:14px">Завантаження...</div>';
+
+  try {
+    const { getFirestore, collection, query, where, orderBy, getDocs, doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+    const app = getApps().length ? getApps()[0] : initializeApp(cfg);
+    const db = getFirestore(app);
+
+    // Завантажуємо накладні типу return зі статусом picked_up або pending
+    const q = query(
+      collection(db, 'invoices'),
+      where('type', '==', 'return')
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-size:14px">Немає накладних на повернення</div>';
+      return;
+    }
+
+    const invoices = snap.docs.map(d => ({id: d.id, ...d.data()}))
+      .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const statusLabel = {
+      pending: '<span class="badge pending">⏳ Нова</span>',
+      picked_up: '<span class="badge warn">🚗 Забрано</span>',
+      processed: '<span class="badge confirmed">✓ Оброблено</span>',
+      confirmed: '<span class="badge confirmed">✓ Підтверджено</span>'
+    };
+
+    wrap.innerHTML = `<div class="tbl-wrap"><table>
+      <thead><tr><th>Номер</th><th>Магазин</th><th>Позицій</th><th>Сума</th><th>Час</th><th>Статус</th><th></th></tr></thead>
+      <tbody>
+        ${invoices.map(inv => `
+          <tr>
+            <td class="td-mono">${inv.id}</td>
+            <td class="td-name">${inv.shopName || '—'}</td>
+            <td class="td-mono">${inv.items ? inv.items.length : 0}</td>
+            <td class="td-mono">${inv.total ? inv.total.toFixed(2) + ' грн' : '—'}</td>
+            <td class="td-mono">${inv.createdAt ? new Date(inv.createdAt).toLocaleTimeString('uk-UA', {hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+            <td>${statusLabel[inv.status] || inv.status}</td>
+            <td>
+              ${inv.status !== 'processed' ? `<button class="btn" onclick="processMerchInvoice('${inv.id}')">Обробити</button>` : '<button class="btn" disabled>Готово</button>'}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+
+    // Save db ref for processMerchInvoice
+    window._merchDb = db;
+  } catch(e) {
+    wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#e84c2b;font-size:14px">Помилка: ${e.message}</div>`;
+    console.error(e);
+  }
+}
+
+async function processMerchInvoice(invoiceId) {
+  if (!window._merchDb) return;
+  if (!confirm('Підтвердити обробку накладної ' + invoiceId + '?')) return;
+  try {
+    const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await updateDoc(doc(window._merchDb, 'invoices', invoiceId), {
+      status: 'processed',
+      processedAt: serverTimestamp()
+    });
+    alert('✅ Накладну ' + invoiceId + ' оброблено');
+    loadMerchInvoices();
+  } catch(e) {
+    alert('Помилка: ' + e.message);
+  }
+}
+
+
 function renderMerchs() {
   document.getElementById('merchTable').innerHTML = merchs.map((m,i)=>`
     <tr>
