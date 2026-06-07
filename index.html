@@ -275,6 +275,17 @@ window.closeCamScanner = function() {
     const WORKER_URL = 'https://scancount-barcode.scancount-service.workers.dev';
 
     window.firebaseLookupEAN = async function(ean) {
+      // 1. Спочатку Firestore (наша база перекладених назв)
+      if (_fbReady) {
+        try {
+          const snap = await getDoc(doc(db, 'products', ean));
+          if (snap.exists()) {
+            console.log("📦 From Firestore:", ean);
+            return snap.data();
+          }
+        } catch(e) {}
+      }
+      // 2. Потім Worker (зовнішня база)
       try {
         const r = await fetch(WORKER_URL + '/' + ean, { signal: AbortSignal.timeout(5000) });
         const d = await r.json();
@@ -310,13 +321,34 @@ window.closeCamScanner = function() {
     // ─────────────────────────────────────────────────────────────
 
     window.firebaseSaveProduct = async function(ean, title, unit) {
-      // Worker is read-only — зберігаємо локально
+      // 1. Зберігаємо локально (швидкий доступ)
       try {
-        const db = JSON.parse(localStorage.getItem('scancount_learned') || '{}');
-        db[ean] = { title, unit: unit || 'шт' };
-        localStorage.setItem('scancount_learned', JSON.stringify(db));
-        console.log("✅ Saved locally:", ean, title);
+        const local = JSON.parse(localStorage.getItem('scancount_learned') || '{}');
+        local[ean] = { title, unit: unit || 'шт' };
+        localStorage.setItem('scancount_learned', JSON.stringify(local));
       } catch(e) {}
+      // 2. Зберігаємо в Firestore (хмара, доступна з будь-якого пристрою)
+      if (_fbReady) {
+        try {
+          await setDoc(doc(db, 'products', ean), {
+            ean, title, unit: unit || 'шт',
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+          console.log("✅ Saved to Firestore:", ean, title);
+        } catch(e) {
+          console.warn("Firestore save failed:", e.message);
+        }
+      }
+    };
+
+    // ── LOOKUP PRODUCT FROM FIRESTORE ────────────────────────────
+    window.firestoreLookupEAN = async function(ean) {
+      if (!_fbReady) return null;
+      try {
+        const snap = await getDoc(doc(db, 'products', ean));
+        if (snap.exists()) return snap.data();
+        return null;
+      } catch(e) { return null; }
     };
 
     window._firebaseReady = true;
