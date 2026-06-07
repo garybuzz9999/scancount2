@@ -6,6 +6,7 @@
 <title>Друк цінників</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <style>
 :root {
   --bg: #f5f4f0; --surface: #ffffff; --surface2: #f0ede8;
@@ -74,11 +75,13 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 }
 #printArea { display: none; }
 .print-page { display: flex; flex-wrap: wrap; gap: 3mm; padding: 2mm; }
-.print-tag { width: 58mm; height: 40mm; border: 0.5pt solid #000; display: flex; flex-direction: column; justify-content: space-between; padding: 2mm 3mm; font-family: Arial, sans-serif; page-break-inside: avoid; overflow: hidden; }
+.print-tag { width: 58mm; height: 40mm; border: 0.5pt solid #000; display: flex; flex-direction: column; justify-content: space-between; padding: 1.5mm 2mm; font-family: Arial, sans-serif; page-break-inside: avoid; overflow: hidden; }
 .print-tag-name { font-size: 9pt; font-weight: bold; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .print-tag-bottom { display: flex; justify-content: space-between; align-items: flex-end; border-top: 0.5pt solid #ccc; padding-top: 1mm; }
 .print-tag-price { font-size: 18pt; font-weight: 900; line-height: 1; }
 .print-tag-unit { font-size: 7pt; color: #555; text-align: right; line-height: 1.3; }
+.print-tag-barcode { text-align: center; margin-top: 1mm; }
+.print-tag-barcode svg { width: 52mm; height: 8mm; }
 </style>
 </head>
 <body>
@@ -236,18 +239,41 @@ function clearAll() { if (!items.length) return; items = []; renderList(); toast
 function printTags() {
   const noPrice = items.filter(i => !i.price);
   if (noPrice.length && !confirm(`${noPrice.length} товарів без ціни. Друкувати?`)) return;
-  document.getElementById('printPage').innerHTML = items.map(item => `
+
+  document.getElementById('printPage').innerHTML = items.map((item, idx) => `
     <div class="print-tag">
       <div class="print-tag-name">${item.title}</div>
       <div class="print-tag-bottom">
         <div class="print-tag-price">${item.price || '—'} <span style="font-size:10pt">грн</span></div>
-        <div class="print-tag-unit">за 1 ${item.unit}<br><span style="font-size:6pt;color:#999">${item.ean}</span></div>
+        <div class="print-tag-unit">за 1 ${item.unit}</div>
+      </div>
+      <div class="print-tag-barcode">
+        <svg id="bc-${idx}"></svg>
       </div>
     </div>`).join('');
-  // Відкриваємо діалог друку — вибрати "Зберегти як PDF"
-  setTimeout(() => {
-    window.print();
-  }, 300);
+
+  // Генеруємо штрихкоди після вставки в DOM
+  items.forEach((item, idx) => {
+    try {
+      JsBarcode('#bc-' + idx, item.ean, {
+        format: 'CODE128',
+        width: 1.5,
+        height: 25,
+        displayValue: true,
+        fontSize: 8,
+        margin: 0,
+        textMargin: 1,
+        lineColor: '#000',
+        background: '#fff'
+      });
+    } catch(e) {
+      // Якщо штрихкод не валідний — показуємо просто текст
+      const el = document.getElementById('bc-' + idx);
+      if (el) el.parentElement.innerHTML = '<div style="font-size:7pt;text-align:center;font-family:monospace">' + item.ean + '</div>';
+    }
+  });
+
+  setTimeout(() => window.print(), 500);
 }
 
 function toast(msg, isError = false) {
