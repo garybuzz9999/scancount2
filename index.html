@@ -286,6 +286,29 @@ window.closeCamScanner = function() {
       }
     };
 
+    // ── TRANSLATE via Google (безкоштовно, без ключа) ──────────
+    window.translateToUk = async function(text) {
+      if (!text) return text;
+      // Перевіряємо чи є кирилиця не українська (російська)
+      // Якщо текст вже українською або латиницею — не перекладаємо
+      const hasRussianOnly = /[ъыёЪЫЁ]/.test(text);
+      const hasUkrainianLetters = /[іІїЇєЄґҐ]/.test(text);
+      const hasCyrillic = /[а-яА-Я]/.test(text);
+      if (!hasCyrillic) return text; // латиниця — не чіпаємо
+      if (!hasRussianOnly && hasUkrainianLetters) return text; // є українські літери — не перекладаємо
+      if (!hasCyrillic) return text;
+      try {
+        const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=uk&dt=t&q=' + encodeURIComponent(text);
+        const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
+        const d = await r.json();
+        const translated = d[0].map(function(x){ return x[0]; }).join('');
+        return translated || text;
+      } catch(e) {
+        return text; // якщо не вдалося — повертаємо оригінал
+      }
+    };
+    // ─────────────────────────────────────────────────────────────
+
     window.firebaseSaveProduct = async function(ean, title, unit) {
       // Worker is read-only — зберігаємо локально
       try {
@@ -2003,7 +2026,8 @@ window.closeCamScanner = function() {
       try {
         const fbData = await window.firebaseLookupEAN(bc);
         if(fbData && fbData.title) {
-          item = { name: fbData.title, unit: fbData.unit || 'шт', price: 0, fromFirebase: true };
+          const fbTitle = await (window.translateToUk ? window.translateToUk(fbData.title) : Promise.resolve(fbData.title));
+          item = { name: fbTitle, unit: fbData.unit || 'шт', price: 0, fromFirebase: true };
           db[bc] = item;
         }
       } catch(e) { console.log('Firebase lookup failed:', e); }
@@ -2050,7 +2074,8 @@ window.closeCamScanner = function() {
         if(d2.code === 'OK' && d2.items && d2.items[0]) {
           const title = d2.items[0].title || '';
           if(title.length > 2) {
-            item = { name: title, unit: 'шт', price: 0, fromListex: true };
+            const translatedTitle2 = await (window.translateToUk ? window.translateToUk(title) : Promise.resolve(title));
+            item = { name: translatedTitle2, unit: 'шт', price: 0, fromListex: true };
             db[bc] = item;
             if(typeof window.firebaseSaveProduct === 'function') {
               window.firebaseSaveProduct(bc, title, 'шт');
