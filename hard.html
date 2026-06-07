@@ -3,1010 +3,539 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ScanCount — Документація та мануал</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Unbounded:wght@300;400;700;900&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>ScanCount — Документація</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --ink:#0a0c12;
-  --paper:#f5f3ee;
-  --paper2:#ede9e1;
-  --paper3:#e2ddd4;
-  --accent:#e84c2b;
-  --accent2:#c73d1f;
-  --blue:#1a3cff;
-  --green:#0a7a4a;
-  --yellow:#f5c800;
-  --mono:'JetBrains Mono',monospace;
-  --display:'Unbounded',sans-serif;
-  --body:'Manrope',sans-serif;
+  --orange:#e84c2b;
+  --orange-light:#fff2ef;
+  --orange-mid:#ffd4cb;
+  --blue:#1e40af;
+  --blue-light:#eff6ff;
+  --green:#15803d;
+  --green-light:#f0fdf4;
+  --purple:#7c3aed;
+  --purple-light:#f5f3ff;
+  --text:#111827;
+  --text2:#6b7280;
+  --text3:#9ca3af;
+  --bg:#ffffff;
+  --bg2:#f9fafb;
+  --bg3:#f3f4f6;
+  --border:#e5e7eb;
+  --radius:12px;
+  --shadow:0 1px 3px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -2px rgba(0,0,0,0.05);
 }
-html{scroll-behavior:smooth}
-body{font-family:var(--body);background:#0d0d0d;color:var(--ink);line-height:1.6;overflow-x:hidden;width:100%}html{overflow-x:hidden;width:100%;background:#0d0d0d}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+code{font-family:'JetBrains Mono',monospace;font-size:0.875em;background:var(--bg3);padding:2px 6px;border-radius:4px;color:var(--orange)}
 
-/* ===== HEADER ===== */
-.site-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--ink);display:flex;flex-direction:column}
-.header-top{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:50px;flex-shrink:0}
-.header-logo{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--paper);letter-spacing:2px;text-transform:uppercase}
-.header-logo span{color:var(--accent)}
-.header-nav{display:flex;flex-direction:row;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-top:1px solid rgba(255,255,255,0.08);padding:0 16px;gap:0}
-.header-nav::-webkit-scrollbar{display:none}
-.header-nav a{font-size:13px;font-weight:700;color:#aaa;text-decoration:none;text-transform:uppercase;letter-spacing:0.8px;padding:12px 16px 12px 0;white-space:nowrap;transition:color 0.2s;flex-shrink:0}
-.header-nav a:hover{color:var(--paper)}
-.header-cta{height:34px;padding:0 14px;background:var(--accent);color:#fff;border:none;border-radius:4px;font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-decoration:none;display:flex;align-items:center;white-space:nowrap}
+/* ── HEADER ── */
+.header{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.header-inner{max-width:1200px;margin:0 auto;padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.logo{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.logo-text{font-size:20px;font-weight:900;letter-spacing:-0.5px}
+.logo-text span{color:var(--orange)}
+.nav{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav::-webkit-scrollbar{display:none}
+.nav a{font-size:13px;font-weight:600;color:var(--text2);padding:8px 12px;border-radius:8px;white-space:nowrap;transition:all 0.15s}
+.nav a:hover,.nav a.active{color:var(--orange);background:var(--orange-light)}
+.header-btn{flex-shrink:0;height:38px;padding:0 18px;background:var(--orange);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:6px;white-space:nowrap}
 
-/* ===== HERO ===== */
-.hero{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:20px 24px 64px;position:relative;overflow:hidden;width:100%;box-sizing:border-box}
-.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
-.hero-tag{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:24px}
-.hero-title{font-family:var(--display);font-size:clamp(36px,8vw,120px);font-weight:900;color:var(--paper);line-height:0.9;margin-bottom:32px;letter-spacing:-2px}
-.hero-title span{color:var(--accent)}
-.hero-desc{font-size:16px;color:#888;max-width:560px;line-height:1.7;margin-bottom:48px}
-.hero-chips{display:flex;gap:12px;flex-wrap:wrap}
-.chip{height:36px;padding:0 16px;border:1px solid rgba(255,255,255,0.15);border-radius:100px;font-family:var(--mono);font-size:11px;color:#aaa;display:inline-flex;align-items:center;gap:8px;letter-spacing:1px}
-.chip span{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+/* ── HERO ── */
+.hero{padding:120px 20px 80px;text-align:center;background:linear-gradient(180deg,#fff9f8 0%,#ffffff 100%)}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--orange-light);border:1px solid var(--orange-mid);color:var(--orange);font-size:12px;font-weight:700;padding:6px 14px;border-radius:100px;letter-spacing:0.5px;margin-bottom:24px;text-transform:uppercase}
+.hero h1{font-size:clamp(36px,6vw,72px);font-weight:900;letter-spacing:-2px;line-height:1;margin-bottom:24px;color:var(--text)}
+.hero h1 span{color:var(--orange)}
+.hero-desc{font-size:18px;color:var(--text2);max-width:600px;margin:0 auto 48px;line-height:1.7}
+.hero-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:48px}
+.chip{height:34px;padding:0 14px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;font-size:12px;font-weight:600;color:var(--text2);display:inline-flex;align-items:center;gap:6px}
+.chip-dot{width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-primary{height:52px;padding:0 28px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-secondary{height:52px;padding:0 28px;background:#fff;color:var(--text);border:2px solid var(--border);border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-secondary:hover{border-color:var(--orange);color:var(--orange)}
 
-/* ===== NAV SIDEBAR ===== */
-.layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh;margin-top:92px}
-.sidebar{position:sticky;top:92px;height:calc(100vh - 92px);overflow-y:auto;background:#0d0d0d;border-right:2px solid var(--ink);padding:32px 0}
-.sidebar::-webkit-scrollbar{width:4px}
-.sidebar::-webkit-scrollbar-thumb{background:var(--paper3)}
-.sidebar-section{padding:0 24px;margin-bottom:8px}
-.sidebar-label{font-family:var(--mono);font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;margin-top:24px}
-.sidebar-link{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:4px;font-size:12px;font-weight:500;color:#666;text-decoration:none;transition:all 0.15s;cursor:pointer}
-.sidebar-link:hover{background:var(--paper3);color:var(--ink)}
-.sidebar-link.active{background:var(--ink);color:var(--paper)}
-.sidebar-link .dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+/* ── ROLE CARDS ── */
+.roles{padding:80px 20px;background:var(--bg2)}
+.roles-inner{max-width:1200px;margin:0 auto}
+.section-badge{font-size:12px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.section-title{font-size:clamp(28px,4vw,48px);font-weight:900;letter-spacing:-1px;margin-bottom:16px}
+.section-title span{color:var(--orange)}
+.section-lead{font-size:16px;color:var(--text2);max-width:600px;margin-bottom:48px;line-height:1.7}
+.roles-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.role-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:28px;transition:all 0.2s;cursor:pointer;text-decoration:none;display:block}
+.role-card:hover{border-color:var(--orange);box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.role-icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px}
+.role-title{font-size:18px;font-weight:800;margin-bottom:8px}
+.role-desc{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.role-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:100px}
 
-/* ===== CONTENT ===== */
-.content{padding:64px 80px;max-width:900px;background:#0d0d0d}
+/* ── FLOW ── */
+.flow-section{padding:80px 20px;background:#fff}
+.flow-inner{max-width:900px;margin:0 auto}
+.flow-steps{display:flex;flex-direction:column;gap:0;margin-top:48px}
+.flow-step{display:flex;gap:20px;padding:24px 0;border-bottom:1px solid var(--border);position:relative}
+.flow-step:last-child{border-bottom:none}
+.step-num{width:36px;height:36px;border-radius:50%;background:var(--orange);color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.step-body{flex:1}
+.step-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.step-desc{font-size:14px;color:var(--text2);line-height:1.6}
+.step-tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:8px;text-transform:uppercase;letter-spacing:0.5px}
 
-/* ===== SECTIONS ===== */
-.section{margin-bottom:96px;scroll-margin-top:80px}
-.section-number{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
-.section-title{font-family:var(--display);font-size:clamp(28px,4vw,48px);font-weight:900;color:var(--ink);line-height:1;letter-spacing:-1px;margin-bottom:24px}
-.section-title span{color:var(--accent)}
-.section-lead{font-size:16px;color:#555;line-height:1.8;max-width:640px;margin-bottom:48px}
-
-/* ===== ROLE CARDS ===== */
-.role-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;margin-bottom:64px;border:2px solid var(--ink)}
-.role-card{background:var(--paper);padding:32px;border:none;position:relative;overflow:hidden}
-.role-card:nth-child(odd){border-right:2px solid var(--ink)}
-.role-card:nth-child(1),.role-card:nth-child(2){border-bottom:2px solid var(--ink)}
-.role-icon{font-size:36px;margin-bottom:16px}
-.role-name{font-family:var(--display);font-size:18px;font-weight:900;color:var(--ink);margin-bottom:8px;letter-spacing:-0.5px}
-.role-desc{font-size:13px;color:#666;line-height:1.6;margin-bottom:16px}
-.role-access{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:1px;text-transform:uppercase;font-weight:700}
-
-/* ===== STEPS ===== */
-.steps{display:flex;flex-direction:column;gap:0}
-.step{display:grid;grid-template-columns:80px 1fr;border:2px solid var(--ink);border-bottom:none;background:var(--paper)}
-.step:last-child{border-bottom:2px solid var(--ink)}
-.step-num{display:flex;align-items:flex-start;justify-content:center;padding:24px 0 24px;border-right:2px solid var(--ink);font-family:var(--mono);font-size:28px;font-weight:700;color:var(--ink);opacity:0.2}
-.step-body{padding:24px 32px}
-.step-title{font-family:var(--display);font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;letter-spacing:-0.3px}
-.step-desc{font-size:13px;color:#555;line-height:1.7}
-.step-code{background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:11px;padding:12px 16px;border-radius:4px;margin-top:12px;overflow-x:auto;line-height:1.6}
-.step-code .key{color:var(--accent)}
-.step-code .val{color:#7dd3a8}
-.step-code .str{color:#f5c800}
-
-/* ===== TERMINAL ===== */
-.terminal{background:var(--ink);border:2px solid var(--ink);margin:32px 0;overflow:hidden}
-.terminal-bar{background:#1a1a1a;padding:10px 16px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #333}
-.terminal-dot{width:10px;height:10px;border-radius:50%}
-.terminal-dot.r{background:#ff5f56}
-.terminal-dot.y{background:#ffbd2e}
-.terminal-dot.g{background:#27c93f}
-.terminal-title{font-family:var(--mono);font-size:10px;color:#666;margin-left:8px;letter-spacing:1px}
-.terminal-body{padding:20px 24px;font-family:var(--mono);font-size:12px;line-height:2;color:#ccc}
-.terminal-body .prompt{color:var(--accent)}
-.terminal-body .cmd{color:var(--paper)}
-.terminal-body .out{color:#7dd3a8}
-.terminal-body .err{color:#ff6b6b}
-.terminal-body .comment{color:#555}
-
-/* ===== API BLOCK ===== */
-.api-block{border:2px solid var(--ink);margin:24px 0;overflow:hidden}
-.api-header{display:flex;align-items:center;gap:16px;padding:14px 20px;background:var(--paper2);border-bottom:2px solid var(--ink)}
-.api-method{font-family:var(--mono);font-size:11px;font-weight:700;padding:4px 10px;border-radius:3px;letter-spacing:1px}
-.api-method.post{background:var(--accent);color:#fff}
-.api-method.get{background:var(--blue);color:#fff}
-.api-method.patch{background:var(--yellow);color:var(--ink)}
-.api-path{font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:500}
-.api-desc{font-size:12px;color:#888;margin-left:auto}
-.api-body{padding:20px 24px;background:var(--ink)}
-.api-body pre{font-family:var(--mono);font-size:11px;color:#ccc;line-height:1.8;overflow-x:auto}
-.api-body .k{color:var(--accent)}
-.api-body .v{color:#7dd3a8}
-.api-body .s{color:var(--yellow)}
-.api-body .c{color:#555;font-style:italic}
-
-/* ===== INFO BOXES ===== */
-.info-box{border-left:4px solid;padding:16px 20px;margin:24px 0;font-size:13px;line-height:1.7}
-.info-box.note{border-color:var(--blue);background:rgba(26,60,255,0.05);color:#1a3cff}
-.info-box.warn{border-color:var(--yellow);background:rgba(245,200,0,0.06);color:#7a6000}
-.info-box.tip{border-color:var(--green);background:rgba(10,122,74,0.06);color:#0a7a4a}
-.info-box.danger{border-color:var(--accent);background:rgba(232,76,43,0.06);color:var(--accent)}
+/* ── DOC SECTIONS ── */
+.doc-section{padding:80px 20px;border-top:1px solid var(--border)}
+.doc-inner{max-width:900px;margin:0 auto}
+.doc-number{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--orange);font-weight:700;letter-spacing:2px;margin-bottom:8px}
+.doc-title{font-size:clamp(28px,4vw,42px);font-weight:900;letter-spacing:-1px;margin-bottom:12px;line-height:1.1}
+.doc-title span{color:var(--orange)}
+.doc-lead{font-size:16px;color:var(--text2);margin-bottom:40px;line-height:1.7;max-width:700px}
+.doc-h3{font-size:20px;font-weight:800;margin:48px 0 20px;padding-top:48px;border-top:1px solid var(--border)}
+.doc-h3:first-of-type{border-top:none;padding-top:0;margin-top:0}
+.steps-list{display:flex;flex-direction:column;gap:12px;margin-bottom:32px}
+.step-item{display:flex;gap:14px;align-items:flex-start;padding:16px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)}
+.step-n{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-text{font-size:14px;line-height:1.6;padding-top:4px}
+.step-text strong{font-weight:700;color:var(--text)}
+.info-box{background:var(--blue-light);border:1px solid #bfdbfe;border-radius:10px;padding:16px 20px;margin:24px 0;font-size:14px;color:var(--blue);line-height:1.6}
 .info-box strong{font-weight:700}
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px 20px;margin:24px 0;font-size:14px;color:#92400e;line-height:1.6}
+.success-box{background:var(--green-light);border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:24px 0;font-size:14px;color:var(--green);line-height:1.6}
+.code-block{background:#111827;color:#e5e7eb;font-family:'JetBrains Mono',monospace;font-size:13px;padding:20px;border-radius:10px;margin:20px 0;overflow-x:auto;line-height:1.7}
+.code-block .key{color:#93c5fd}
+.code-block .val{color:#86efac}
+.code-block .str{color:#fca5a5}
+.method-badge{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-right:8px}
+.get{background:#dbeafe;color:#1d4ed8}
+.post{background:#dcfce7;color:#15803d}
+.patch{background:#fef3c7;color:#d97706}
+.endpoint{display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin:8px 0;font-size:13px}
+.endpoint code{background:none;padding:0;color:var(--text)}
 
-/* ===== TABLE ===== */
-.doc-table{width:100%;border-collapse:collapse;border:2px solid var(--ink);margin:24px 0;font-size:13px}
-.doc-table th{background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:12px 16px;text-align:left;font-weight:500}
-.doc-table td{padding:12px 16px;border-bottom:1px solid var(--paper3);vertical-align:top}
-.doc-table tr:last-child td{border-bottom:none}
-.doc-table tr:hover td{background:var(--paper2)}
-.doc-table .mono{font-family:var(--mono);font-size:11px;color:var(--accent)}
-.doc-table .req{font-size:10px;font-weight:700;color:var(--accent);font-family:var(--mono)}
-.doc-table .opt{font-size:10px;font-weight:700;color:#999;font-family:var(--mono)}
+/* ── API TABLE ── */
+.api-table{width:100%;border-collapse:collapse;margin:20px 0;font-size:13px}
+.api-table th{text-align:left;padding:10px 14px;background:var(--bg3);font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);font-size:12px;text-transform:uppercase;letter-spacing:0.5px}
+.api-table td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+.api-table tr:last-child td{border-bottom:none}
+.required{color:var(--orange);font-size:11px;font-weight:700}
 
-/* ===== DEMO ===== */
-.demo-frame{border:2px solid var(--ink);background:var(--paper);margin:32px 0;overflow:hidden}
-.demo-bar{background:var(--paper2);border-bottom:2px solid var(--ink);padding:10px 16px;display:flex;align-items:center;gap:8px}
-.demo-bar .dot{width:10px;height:10px;border-radius:50%;background:var(--paper3)}
-.demo-url{font-family:var(--mono);font-size:10px;color:#888;margin-left:4px}
-.demo-content{padding:32px}
+/* ── FOOTER ── */
+.footer{background:#111827;color:#9ca3af;padding:40px 20px;text-align:center;font-size:14px}
+.footer a{color:#60a5fa;font-weight:600}
+.footer-links{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-top:16px}
 
-/* ===== FLOW ===== */
-.flow{display:flex;align-items:stretch;gap:0;margin:32px 0;overflow-x:auto}
-.flow-step{flex:1;min-width:140px;border:2px solid var(--ink);padding:20px 16px;position:relative;background:var(--paper);text-align:center}
-.flow-step:not(:last-child){border-right:none}
-.flow-step:not(:last-child)::after{content:'→';position:absolute;right:-14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--ink);z-index:1;background:var(--paper);padding:0 4px}
-.flow-icon{font-size:24px;margin-bottom:8px}
-.flow-name{font-family:var(--display);font-size:11px;font-weight:700;color:var(--ink);margin-bottom:4px;letter-spacing:-0.3px}
-.flow-who{font-family:var(--mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
-.flow-step.highlight{background:var(--ink)}
-.flow-step.highlight .flow-name{color:var(--paper)}
-.flow-step.highlight .flow-who{color:var(--accent)}
-
-/* ===== BADGE ===== */
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
-.badge.free{background:#d1fae5;color:#0a7a4a}
-.badge.pro{background:#fef3c7;color:#7a6000}
-.badge.api{background:#dbeafe;color:#1e3a8a}
-
-/* ===== DIVIDER ===== */
-.divider{height:2px;background:var(--ink);margin:64px 0;opacity:0.1}
-
-/* ===== FOOTER ===== */
-footer{background:var(--ink);color:var(--paper);padding:48px;text-align:center}
-.footer-logo{font-family:var(--display);font-size:32px;font-weight:900;margin-bottom:8px;letter-spacing:-1px}
-.footer-logo span{color:var(--accent)}
-.footer-sub{font-family:var(--mono);font-size:11px;color:#666;letter-spacing:2px;text-transform:uppercase;margin-bottom:32px}
-.footer-links{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:24px}
-.footer-links a{font-size:12px;color:#666;text-decoration:none;font-weight:500;transition:color 0.15s}
-.footer-links a:hover{color:var(--paper)}
-.footer-copy{font-family:var(--mono);font-size:10px;color:#444;letter-spacing:1px}
-
+/* ── MOBILE ── */
 @media(max-width:768px){
-  .layout{grid-template-columns:1fr!important;margin-top:92px}
-  .sidebar{display:none!important}
-  .content{padding:24px 16px;max-width:100%;width:100%}
-  .hero{padding:20px 24px 48px}
-  .role-grid{grid-template-columns:1fr}
-  .role-card:nth-child(odd){border-right:none}
-  .role-card:nth-child(1),.role-card:nth-child(2){border-bottom:2px solid var(--ink)}
-  .flow{flex-direction:column}
-  .flow-step:not(:last-child){border-right:2px solid var(--ink);border-bottom:none}
-  .flow-step:not(:last-child)::after{content:'↓';right:auto;left:50%;top:auto;bottom:-14px;transform:translateX(-50%)}
+  .nav a{padding:8px 8px;font-size:12px}
+  .hero{padding:100px 16px 60px}
+  .roles,.flow-section,.doc-section{padding:60px 16px}
+  .roles-grid{grid-template-columns:1fr}
+  .doc-inner{padding:0}
+  .header-btn span{display:none}
 }
 </style>
 </head>
 <body>
 
 <!-- HEADER -->
-<header class="site-header">
-  <div class="header-top">
-    <div class="header-logo">Scan<span>Count</span></div>
-    <a href="https://scancount.online" class="header-cta">Відкрити →</a>
+<header class="header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-text">Scan<span>Count</span></div>
+    </a>
+    <nav class="nav">
+      <a href="#overview">Огляд</a>
+      <a href="#shop-register">Магазин</a>
+      <a href="#dist-setup">Дистриб'ютор</a>
+      <a href="#exp-login">Експедитор</a>
+      <a href="#merch-work">Товарознавець</a>
+      <a href="#api-auth">API</a>
+    </nav>
+    <a href="index.html" class="header-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"/><path d="M21 3L9 15"/><path d="M10 3H3v18h18v-7"/></svg>
+      <span>Відкрити</span>
+    </a>
   </div>
-  <nav class="header-nav">
-    <a href="#overview">Огляд</a>
-    <a href="#shop">Магазин</a>
-    <a href="#distributor">Дистриб'ютор</a>
-    <a href="#expeditor">Експедитор</a>
-    <a href="#api">API</a>
-  </nav>
 </header>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-grid"></div>
-  <div class="hero-tag">// документація v1.0</div>
-  <h1 class="hero-title">Scan<span>Count</span><br>HARD DOCS</h1>
-  <p class="hero-desc">Повний мануал системи управління накладними для магазинів, дистриб'юторів і експедиторів. Тут є все — від першого сканування до API інтеграції.</p>
+  <div class="hero-badge">// Документація v1.0</div>
+  <h1>Scan<span>Count</span><br>Hard Docs</h1>
+  <p class="hero-desc">Повний мануал системи управління накладними для магазинів, дистриб'юторів і експедиторів. Від першого сканування до API інтеграції.</p>
   <div class="hero-chips">
-    <div class="chip"><span></span>scancount.online</div>
-    <div class="chip"><span></span>scancount.online/app.html</div>
-    
-    <div class="chip"><span></span>Firebase Firestore</div>
-    <div class="chip"><span></span>Cloudflare Workers</div>
+    <div class="chip"><span class="chip-dot"></span>scancount.online</div>
+    <div class="chip"><span class="chip-dot"></span>scancount.online/app.html</div>
+    <div class="chip"><span class="chip-dot"></span>Firebase Firestore</div>
+    <div class="chip"><span class="chip-dot"></span>Cloudflare Workers</div>
+  </div>
+  <div class="hero-cta">
+    <a href="#overview" class="btn-primary">Почати читати →</a>
+    <a href="index.html" class="btn-secondary">Відкрити сервіс</a>
   </div>
 </section>
 
-<!-- LAYOUT -->
-<div class="layout">
+<!-- ROLES -->
+<section class="roles" id="overview">
+  <div class="roles-inner">
+    <div class="section-badge">// 01 — Огляд</div>
+    <h2 class="section-title">Що таке <span>ScanCount</span>?</h2>
+    <p class="section-lead">Платформа для автоматизації документообігу між магазинами і дистриб'юторами. Накладні, повернення, коригування — все в хмарі, з геолокацією і штрихкодами.</p>
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <div class="sidebar-section">
-    <div class="sidebar-label">Початок</div>
-    <a class="sidebar-link" href="#overview"><span class="dot"></span>Огляд системи</a>
-    <a class="sidebar-link" href="#roles"><span class="dot"></span>Ролі та доступи</a>
-    <a class="sidebar-link" href="#flow"><span class="dot"></span>Загальний флоу</a>
-
-    <div class="sidebar-label">Для магазину</div>
-    <a class="sidebar-link" href="#shop-register"><span class="dot"></span>Реєстрація</a>
-    <a class="sidebar-link" href="#shop-recount"><span class="dot"></span>Переоблік</a>
-    <a class="sidebar-link" href="#shop-price"><span class="dot"></span>Цінники</a>
-    <a class="sidebar-link" href="#shop-dist"><span class="dot"></span>Дистриб'ютор</a>
-    <a class="sidebar-link" href="#shop-scan"><span class="dot"></span>Сканування накладної</a>
-
-    <div class="sidebar-label">Для дистриб'ютора</div>
-    <a class="sidebar-link" href="#dist-setup"><span class="dot"></span>Налаштування</a>
-    <a class="sidebar-link" href="#dist-staff"><span class="dot"></span>Персонал</a>
-    <a class="sidebar-link" href="#dist-invoices"><span class="dot"></span>Накладні</a>
-    <a class="sidebar-link" href="#dist-queue"><span class="dot"></span>Черга</a>
-
-    <div class="sidebar-label">Для експедитора</div>
-    <a class="sidebar-link" href="#exp-login"><span class="dot"></span>Вхід по коду</a>
-    <a class="sidebar-link" href="#exp-scan"><span class="dot"></span>Сканування</a>
-    <a class="sidebar-link" href="#exp-correct"><span class="dot"></span>Коригування</a>
-
-    <div class="sidebar-label">Для товарознавця</div>
-    <a class="sidebar-link" href="#merch-work"><span class="dot"></span>Робоче місце</a>
-    <a class="sidebar-link" href="#merch-returns"><span class="dot"></span>Повернення</a>
-    <a class="sidebar-link" href="#merch-corrections"><span class="dot"></span>Поправки</a>
-
-    <div class="sidebar-label">API / Інтеграція</div>
-    <a class="sidebar-link" href="#api-auth"><span class="dot"></span>Автентифікація</a>
-    <a class="sidebar-link" href="#api-endpoints"><span class="dot"></span>Ендпоінти</a>
-    <a class="sidebar-link" href="#api-examples"><span class="dot"></span>Приклади</a>
-    <a class="sidebar-link" href="#api-errors"><span class="dot"></span>Помилки</a>
-  </div>
-</aside>
-
-<!-- CONTENT -->
-<main class="content">
-
-  <!-- OVERVIEW -->
-  <section class="section" id="overview">
-    <div class="section-number">// 01</div>
-    <h2 class="section-title">Що таке<br><span>ScanCount</span>?</h2>
-    <p class="section-lead">ScanCount — це платформа для автоматизації документообігу між магазинами і дистриб'юторами. Накладні, повернення, коригування — все в хмарі, з геолокацією і штрихкодами.</p>
-
-    <div class="info-box note"><strong>Ключова ідея:</strong> Дистриб'ютор формує накладну у своїй системі → вона автоматично через API потрапляє в ScanCount → експедитор отримує на телефоні → сканує штрихкод → підтверджує або коригує → магазин підтверджує отримання. Все збережено в хмарі.</div>
-
-    <div class="role-grid" id="roles">
-      <div class="role-card">
-        <div class="role-icon">🏪</div>
-        <div class="role-name">Магазин</div>
-        <div class="role-desc">Безкоштовний переоблік та цінники. З кодом дистриб'ютора — повний доступ до накладних, повернень і коригувань.</div>
-        <div class="role-access">scancount.online <span class="badge free">FREE</span></div>
-      </div>
-      <div class="role-card">
-        <div class="role-icon">🏭</div>
-        <div class="role-name">Дистриб'ютор</div>
-        <div class="role-desc">Кабінет бухгалтера для управління персоналом, накладними, чергою товарознавців і реквізитами.</div>
-        <div class="role-access">scancount.online/app.html <span class="badge pro">PRO</span></div>
-      </div>
-      <div class="role-card">
-        <div class="role-icon">📋</div>
-        <div class="role-name">Товарознавець</div>
-        <div class="role-desc">Отримує накладні в чергу, звіряє повернення і коригування від експедиторів, вносить в свою облікову систему.</div>
-        <div class="role-access">scancount.online/app.html <span class="badge pro">PRO</span></div>
-      </div>
-      <div class="role-card">
-        <div class="role-icon">🚗</div>
-        <div class="role-name">Експедитор</div>
-        <div class="role-desc">Мобільний інтерфейс для сканування накладних на місці, підтвердження або коригування з геолокацією.</div>
-        <div class="role-access">scancount.online/app.html <span class="badge pro">PRO</span></div>
-      </div>
+    <div class="roles-grid">
+      <a href="#shop-register" class="role-card">
+        <div class="role-icon" style="background:#eff6ff">🏪</div>
+        <div class="role-title">Магазин</div>
+        <div class="role-desc">Переоблік, цінники, сканування накладних від дистриб'ютора. Безкоштовно назавжди.</div>
+        <div class="role-tag" style="background:#eff6ff;color:#1d4ed8">FREE · scancount.online</div>
+      </a>
+      <a href="#dist-setup" class="role-card">
+        <div class="role-icon" style="background:#fff7ed">🏭</div>
+        <div class="role-title">Дистриб'ютор</div>
+        <div class="role-desc">Формування накладних, управління персоналом, моніторинг черги та магазинів.</div>
+        <div class="role-tag" style="background:#fff7ed;color:#c2410c">PRO · app.html</div>
+      </a>
+      <a href="#exp-login" class="role-card">
+        <div class="role-icon" style="background:#f0fdf4">🚗</div>
+        <div class="role-title">Експедитор</div>
+        <div class="role-desc">Маршрути доставки, сканування повернень і коригувань. Геолокація обов'язкова.</div>
+        <div class="role-tag" style="background:#f0fdf4;color:#15803d">PRO · app.html</div>
+      </a>
+      <a href="#merch-work" class="role-card">
+        <div class="role-icon" style="background:#f5f3ff">📋</div>
+        <div class="role-title">Товарознавець</div>
+        <div class="role-desc">Обробка накладних з черги, перевірка і підтвердження товарів від постачальника.</div>
+        <div class="role-tag" style="background:#f5f3ff;color:#7c3aed">PRO · app.html</div>
+      </a>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- FLOW -->
-  <section class="section" id="flow">
-    <div class="section-number">// 02</div>
-    <h2 class="section-title">Загальний<br><span>флоу</span></h2>
+<!-- FLOW -->
+<section class="flow-section" id="flow">
+  <div class="flow-inner">
+    <div class="section-badge">// 02 — Загальний флоу</div>
+    <h2 class="section-title">Як це <span>працює</span>?</h2>
     <p class="section-lead">Від формування накладної до підтвердження магазином — весь ланцюжок автоматизований.</p>
 
-    <h3 style="font-family:var(--display);font-size:14px;font-weight:700;margin-bottom:12px;letter-spacing:-0.3px">Приходна накладна</h3>
-    <div class="flow">
-      <div class="flow-step highlight">
-        <div class="flow-icon">💻</div>
-        <div class="flow-name">1С/Обл. система</div>
-        <div class="flow-who">товарознавець</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon">🔌</div>
-        <div class="flow-name">API POST</div>
-        <div class="flow-who">автоматично</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon">☁️</div>
-        <div class="flow-name">Firebase</div>
-        <div class="flow-who">хмара</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon">📱</div>
-        <div class="flow-name">Сканування</div>
-        <div class="flow-who">експедитор</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon">✅</div>
-        <div class="flow-name">Підтвердження</div>
-        <div class="flow-who">магазин</div>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:14px;font-weight:700;margin:32px 0 12px;letter-spacing:-0.3px">Повернення від магазину</h3>
-    <div class="flow">
-      <div class="flow-step highlight">
-        <div class="flow-icon">🏪</div>
-        <div class="flow-name">Формує накладну</div>
-        <div class="flow-who">магазин</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon">☁️</div>
-        <div class="flow-name">Firebase</div>
-        <div class="flow-who">хмара</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon">📷</div>
-        <div class="flow-name">Сканує ШК</div>
-        <div class="flow-who">експедитор</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon">📋</div>
-        <div class="flow-name">Отримує</div>
-        <div class="flow-who">товарознавець</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- SHOP -->
-  <section class="section" id="shop-register">
-    <div class="section-number">// 03</div>
-    <h2 class="section-title">Для<br><span>магазину</span></h2>
-    <p class="section-lead">Магазин отримує безкоштовний доступ до переобліку і друку цінників одразу після реєстрації. Платні функції вмикаються кодом від дистриб'ютора.</p>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:24px;letter-spacing:-0.5px" id="shop-register">Реєстрація</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Відкрийте scancount.online</div>
-          <div class="step-desc">На головній сторінці натисніть кнопку <strong>Реєстрація</strong>. Виберіть тип акаунту — Магазин.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Заповніть дані</div>
-          <div class="step-desc">Введіть телефон, email, назву магазину та ім'я власника. Натисніть <strong>Зареєструватись</strong>.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Готово — безкоштовні функції доступні</div>
-          <div class="step-desc">Одразу доступні: <span class="badge free">Переоблік</span> і <span class="badge free">Друк цінників</span>. Без жодного коду.</div>
-        </div>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="shop-recount">Переоблік товарів</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Відскануйте або введіть штрихкод</div>
-          <div class="step-desc">В полі сканування введіть штрихкод або натисніть 📷 для сканування камерою. Товар знаходиться автоматично з бази 151к+ позицій.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Введіть кількість і ціну</div>
-          <div class="step-desc">Після сканування вкажіть кількість і роздрібну ціну. Товар додається в таблицю переобліку.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Товар не знайдений — введіть вручну</div>
-          <div class="step-desc">Якщо штрихкод не знайдено в базі — введіть назву і одиницю виміру вручну. Товар автоматично зберігається в <strong>локальну базу вашого магазину</strong>. При наступному скануванні цього штрихкоду — назва підтягнеться автоматично.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">04</div>
-        <div class="step-body">
-          <div class="step-title">Збережіть переоблік</div>
-          <div class="step-desc">Натисніть <strong>Зберегти</strong> — результат переобліку збережеться на пристрій. База товарів вашого магазину зберігається локально і поповнюється автоматично при кожному новому скануванні.</div>
-        </div>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="shop-price">Друк цінників</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Перейдіть в розділ Друк цінників</div>
-          <div class="step-desc">На головній сторінці натисніть <strong>🏷️ Друк цінників</strong>.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Відскануйте товари</div>
-          <div class="step-desc">Скануйте штрихкоди — для кожного товару вкажіть роздрібну ціну.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Збережіть PDF і роздрукуйте</div>
-          <div class="step-desc">Натисніть <strong>Зберегти PDF</strong> — отримаєте аркуш A4 з 24 цінниками 58×40мм. Після друку розріжте по лініях.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="info-box tip"><strong>База товарів:</strong> Загальна база (151к+ позицій) поповнюється постачальниками — ви отримуєте оновлення автоматично. Товари які ви додали вручну зберігаються тільки у вашому магазині.</div>
-
-    <div class="info-box tip"><strong>Порада:</strong> Цінники містять штрихкод для внутрішнього використання — зручно для подальшого сканування при переобліку.</div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="shop-dist">Підключення дистриб'ютора</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Отримайте код від дистриб'ютора</div>
-          <div class="step-desc">Дистриб'ютор генерує код в своєму кабінеті (Налаштування → Код для магазинів). Формат: <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">DIST-XXXXXX</code></div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Увійдіть в кабінет магазину</div>
-          <div class="step-desc">Після входу натисніть <strong>+ Додати дистриб'ютора</strong> → введіть код → система автоматично заповнить картку дистриб'ютора.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Платні функції активовані</div>
-          <div class="step-desc">Автоматично відкриються три папки для кожного дистриб'ютора: <span class="badge pro">↩ Повернення</span> <span class="badge pro">✏️ Коригування</span> <span class="badge pro">📦 Приходні</span></div>
-        </div>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="shop-scan">Сканування накладної</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Отримайте накладну від експедитора</div>
-          <div class="step-desc">Коли експедитор доставив товар і підтвердив накладну, на ній є штрихкод. Відкрийте кабінет магазину → <strong>📷 Сканувати накладну</strong>.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Відскануйте або введіть номер</div>
-          <div class="step-desc">Наведіть камеру на штрихкод або введіть номер накладної вручну (наприклад <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">OUT-ABC123XY</code>).</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Перевірте і підтвердіть</div>
-          <div class="step-desc">Система покаже список товарів. Якщо є коригування від експедитора — вони відображені окремо. Натисніть <strong>✓ Підтвердити отримання</strong>.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">04</div>
-        <div class="step-body">
-          <div class="step-title">Накладна збережена в папку</div>
-          <div class="step-desc">Приходні → в папку <strong>Приходні накладні</strong>. Накладні з коригуванням → в папку <strong>Коригування</strong>. Повернення, які ви відправили раніше → в <strong>Повернення</strong>.</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- DISTRIBUTOR -->
-  <section class="section" id="dist-setup">
-    <div class="section-number">// 04</div>
-    <h2 class="section-title">Для<br><span>дистриб'ютора</span></h2>
-    <p class="section-lead">Кабінет бухгалтера на scancount.online/app.html — центр управління всією логістикою дистриб'ютора.</p>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:24px;letter-spacing:-0.5px">Початкове налаштування</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Відкрийте scancount.online/app.html</div>
-          <div class="step-desc">Виберіть роль <strong>Бухгалтер</strong> → введіть код <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">BUH-XXXX</code> або увійдіть як адміністратор.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Заповніть реквізити</div>
-          <div class="step-desc">Налаштування → Реквізити компанії. Заповніть: назва, ЄДРПОУ, ІПН, адреса, банк, IBAN, МФО, телефон, email.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Скопіюйте код для магазинів</div>
-          <div class="step-desc">Після збереження реквізитів система генерує <strong>Код для підключення магазинів</strong> формату <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">DIST-XXXXXX</code>. Надайте його магазинам.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">04</div>
-        <div class="step-body">
-          <div class="step-title">Налаштуйте API інтеграцію</div>
-          <div class="step-desc">Скопіюйте <strong>API ключ</strong> і передайте програмісту вашої облікової системи (1С, SAP, тощо). Він підключить автоматичне відправлення накладних.</div>
-        </div>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="dist-staff">Управління персоналом</h3>
-
-    <div class="info-box note"><strong>Принцип роботи:</strong> Бухгалтер створює акаунти. Кожен співробітник отримує унікальний код входу. Коди зберігаються в Firebase і перевіряються при вході.</div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Додайте товарознавця</div>
-          <div class="step-desc">Меню <strong>Товарознавці</strong> → <strong>+ Товарознавець</strong> → введіть ім'я і телефон → система генерує код <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">MRC-XXXX</code>. Збережено в Firebase.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Додайте експедитора</div>
-          <div class="step-desc">Меню <strong>Експедитори</strong> → <strong>+ Експедитор</strong> → ім'я і телефон → код <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">EXP-XXXX</code>. Скопіюйте код — передайте водію.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Активація/деактивація</div>
-          <div class="step-desc">В таблиці персоналу є toggle перемикач. Деактивований співробітник не може увійти в систему — зручно при звільненні або лікарняному.</div>
-        </div>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="dist-queue">Черга товарознавців</h3>
-    <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:24px">Накладні розподіляються між активними товарознавцями по черзі автоматично. Якщо товарознавець деактивований — він пропускається.</p>
-
-    <div class="demo-frame">
-      <div class="demo-bar">
-        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-        <span class="demo-url">scancount.online/app.html — Черга</span>
-      </div>
-      <div class="demo-content">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-          <div style="background:var(--paper2);border:2px solid var(--ink);padding:16px;text-align:center">
-            <div style="width:36px;height:36px;border-radius:8px;background:#4f8ef7;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;margin:0 auto 8px">І</div>
-            <div style="font-family:var(--display);font-size:12px;font-weight:700">Іваненко О.</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
-              <div style="background:var(--paper);border:1px solid var(--paper3);padding:6px;text-align:center">
-                <div style="font-family:var(--mono);font-size:16px;font-weight:700">12</div>
-                <div style="font-size:9px;color:#999;text-transform:uppercase;letter-spacing:0.5px">Оброблено</div>
-              </div>
-              <div style="background:var(--paper);border:1px solid var(--paper3);padding:6px;text-align:center">
-                <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:#d97706">3</div>
-                <div style="font-size:9px;color:#999;text-transform:uppercase;letter-spacing:0.5px">В черзі</div>
-              </div>
-            </div>
+    <div style="margin-bottom:40px">
+      <h3 style="font-size:18px;font-weight:800;margin-bottom:20px">📦 Приходна накладна</h3>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Дистриб'ютор формує накладну</div>
+            <div class="step-desc">В обліковій системі або через API ScanCount. Накладна потрапляє в хмару з унікальним штрихкодом <code>OUT-XXXXXX</code></div>
+            <span class="step-tag" style="background:#fff7ed;color:#c2410c">Бухгалтер</span>
           </div>
-          <div style="background:var(--paper2);border:2px solid var(--ink);padding:16px;text-align:center">
-            <div style="width:36px;height:36px;border-radius:8px;background:#2dd4a0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;margin:0 auto 8px">П</div>
-            <div style="font-family:var(--display);font-size:12px;font-weight:700">Петренко В.</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
-              <div style="background:var(--paper);border:1px solid var(--paper3);padding:6px;text-align:center">
-                <div style="font-family:var(--mono);font-size:16px;font-weight:700">18</div>
-                <div style="font-size:9px;color:#999;text-transform:uppercase;letter-spacing:0.5px">Оброблено</div>
-              </div>
-              <div style="background:var(--paper);border:1px solid var(--paper3);padding:6px;text-align:center">
-                <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:#d97706">2</div>
-                <div style="font-size:9px;color:#999;text-transform:uppercase;letter-spacing:0.5px">В черзі</div>
-              </div>
-            </div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Експедитор отримує маршрут</div>
+            <div class="step-desc">В app.html з'являється список накладних на доставку. Геолокація фіксується при кожній дії.</div>
+            <span class="step-tag" style="background:#f0fdf4;color:#15803d">Експедитор</span>
           </div>
-          <div style="background:var(--paper2);border:2px dashed var(--paper3);padding:16px;text-align:center;opacity:0.5">
-            <div style="width:36px;height:36px;border-radius:8px;background:#f5c842;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;margin:0 auto 8px">С</div>
-            <div style="font-family:var(--display);font-size:12px;font-weight:700">Сидоренко М.</div>
-            <div style="font-size:10px;color:#dc2626;margin-top:8px;font-family:var(--mono)">● ДЕАКТИВОВАНА</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Магазин сканує штрихкод</div>
+            <div class="step-desc">Відкриває накладну камерою або вручну вводить номер. Може скоригувати кількість товарів.</div>
+            <span class="step-tag" style="background:#eff6ff;color:#1d4ed8">Магазин</span>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Підтвердження отримання</div>
+            <div class="step-desc">Статус накладної змінюється на <code>confirmed</code>. Дистриб'ютор бачить підтвердження в реальному часі.</div>
+            <span class="step-tag" style="background:#f0fdf4;color:#15803d">✓ Завершено</span>
           </div>
         </div>
       </div>
     </div>
-  </section>
 
-  <!-- EXPEDITOR -->
-  <section class="section" id="exp-login">
-    <div class="section-number">// 05</div>
-    <h2 class="section-title">Для<br><span>експедитора</span></h2>
-    <p class="section-lead">Мобільний інтерфейс. Оптимізований для роботи однією рукою під час завантаження/розвантаження.</p>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:24px;letter-spacing:-0.5px">Вхід по коду</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Відкрийте scancount.online/app.html</div>
-          <div class="step-desc">Виберіть роль <strong>🚗 Експедитор</strong>.</div>
+    <div>
+      <h3 style="font-size:18px;font-weight:800;margin-bottom:20px">↩ Повернення від магазину</h3>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Магазин ініціює повернення</div>
+            <div class="step-desc">Сканує штрихкод товару → вводить кількість → натискає "Накладна на повернення"</div>
+            <span class="step-tag" style="background:#eff6ff;color:#1d4ed8">Магазин</span>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Введіть код</div>
-          <div class="step-desc">Введіть код формату <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">EXP-XXXX</code> який надав бухгалтер. Система перевіряє код в Firebase — якщо активний, пускає.</div>
+        <div class="flow-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Експедитор сканує при забірці</div>
+            <div class="step-desc">В app.html відкриває "Повернення" → сканує штрихкод <code>RET-XXXXXX</code> → підтверджує</div>
+            <span class="step-tag" style="background:#f0fdf4;color:#15803d">Експедитор</span>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Товарознавець обробляє</div>
+            <div class="step-desc">Отримує повернення в чергу → перевіряє товари → підтверджує або коригує кількість</div>
+            <span class="step-tag" style="background:#f5f3ff;color:#7c3aed">Товарознавець</span>
+          </div>
         </div>
       </div>
     </div>
+  </div>
+</section>
 
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="exp-scan">Сканування повернення</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Натисніть "📷 Сканувати накладну"</div>
-          <div class="step-desc">На головному екрані дві великі кнопки. Для повернення від магазину — перша кнопка.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Відскануйте штрихкод накладної</div>
-          <div class="step-desc">Натисніть на зону сканування або введіть номер вручну. Система завантажує накладну з Firebase.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Підтвердіть з геолокацією</div>
-          <div class="step-desc">Натисніть <strong>✓ Підтвердити з геолокацією</strong> — браузер запросить дозвіл на геолокацію. Координати зберігаються в Firebase разом з підтвердженням.</div>
-        </div>
-      </div>
+<!-- МАГАЗИН -->
+<section class="doc-section" id="shop-register">
+  <div class="doc-inner">
+    <div class="doc-number">// 03</div>
+    <h2 class="doc-title">Для <span>магазину</span></h2>
+    <p class="doc-lead">Магазин отримує безкоштовний доступ до переобліку і друку цінників одразу після реєстрації. Платні функції вмикаються кодом від дистриб'ютора.</p>
+
+    <div class="doc-h3">Реєстрація</div>
+    <div class="success-box">✓ Безкоштовно назавжди — переоблік і друк цінників не потребують підписки.</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Відкрийте <strong>scancount.online</strong> → натисніть <strong>Реєстрація</strong></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Виберіть <strong>Реєстрація магазину</strong> — заповніть назву, телефон, ім'я власника, email і пароль</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Після реєстрації з'явиться ваш унікальний код магазину — <code>SHOP-XXXXXX</code>. Збережіть його.</div></div>
+      <div class="step-item"><div class="step-n">4</div><div class="step-text">Відкривається кабінет магазину з переобліком, цінниками та сканером накладних</div></div>
     </div>
 
-    <div class="info-box warn"><strong>Важливо:</strong> Геолокація — обов'язкова. Вона підтверджує що підтвердження відбулось фізично в магазині, а не дистанційно. Дайте дозвіл браузеру при першому запиті.</div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="exp-correct">Коригування накладної</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Натисніть "✏️ Внести коригування"</div>
-          <div class="step-desc">Друга велика кнопка на головному екрані — для приходних накладних де є розбіжності.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Завантажте накладну</div>
-          <div class="step-desc">Відскануйте штрихкод або введіть номер. Накладна завантажується з Firebase з усіма позиціями товарознавця.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Відредагуйте кількість або найменування</div>
-          <div class="step-desc">В таблиці позицій — змініть кількість або назву товару де є фактична розбіжність. Змінені рядки підсвічуються помаранчевим.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">04</div>
-        <div class="step-body">
-          <div class="step-title">Відправте з геолокацією</div>
-          <div class="step-desc">Натисніть <strong>📤 Відправити з геолокацією</strong>. Firebase зберігає: оригінал, поправки, diff і координати. Товарознавець отримує сповіщення.</div>
-        </div>
-      </div>
+    <div class="doc-h3">Переоблік товарів</div>
+    <div class="info-box"><strong>Як це працює:</strong> Скануєте штрихкод → система шукає назву в базі → вводите кількість → додаєте до переобліку. В кінці зберігаєте CSV.</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Натисніть кнопку <strong>📷</strong> або введіть штрихкод вручну в поле сканування</div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Якщо товар знайдено в базі — назва підставляється автоматично (українською)</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Введіть кількість → натисніть <strong>+ Додати</strong></div></div>
+      <div class="step-item"><div class="step-n">4</div><div class="step-text">Після завершення натисніть <strong>Зберегти</strong> → отримаєте CSV файл з переобліком</div></div>
     </div>
-  </section>
+    <div class="warn-box">⚠️ Щоб завантажити власну базу товарів — підготуйте CSV у форматі: <code>штрихкод;назва;одиниця;ціна</code></div>
 
-  <!-- MERCH -->
-  <section class="section" id="merch-work">
-    <div class="section-number">// 06</div>
-    <h2 class="section-title">Для<br><span>товарознавця</span></h2>
-    <p class="section-lead">Товарознавець — сполучна ланка між обліковою системою і реальністю. Він отримує накладні в чергу, звіряє поправки і вносить в свою систему.</p>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:24px;letter-spacing:-0.5px" id="merch-returns">Вхідні повернення</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Увійдіть як Товарознавець</div>
-          <div class="step-desc">Відкрийте scancount.online/app.html → виберіть <strong>📋 Товарознавець</strong> → введіть код <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">MRC-XXXX</code>.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Перегляньте вхідні повернення</div>
-          <div class="step-desc">Розділ <strong>↩ Вхідні повернення</strong> — список накладних від магазинів підтверджених експедитором. Бачите геолокацію підтвердження.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Натисніть Розглянути і внесіть в систему</div>
-          <div class="step-desc">Перевірте позиції. Натисніть <strong>✓ Внесено в систему</strong> — накладна позначається як оброблена.</div>
-        </div>
-      </div>
+    <div class="doc-h3">Друк цінників</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Натисніть <strong>🏷 Друк цінників</strong> в кабінеті або відкрийте <code>scancount.online/price-tags.html</code></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Скануйте штрихкоди товарів → введіть ціну для кожного</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Натисніть <strong>💾 Зберегти PDF</strong> → відкриється діалог друку</div></div>
+      <div class="step-item"><div class="step-n">4</div><div class="step-text">Формат: A4, до 24 цінників 58×40мм на аркуші. Розрізати по лініях.</div></div>
     </div>
 
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 24px;letter-spacing:-0.5px" id="merch-corrections">Поправки від експедитора</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-body">
-          <div class="step-title">Розділ "Мої накладні"</div>
-          <div class="step-desc">Тут видно всі відправлені вами накладні зі статусами: 🚗 У дорозі / ⚠️ Є поправки / ✓ Підтверджено.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-body">
-          <div class="step-title">Перегляньте поправки</div>
-          <div class="step-desc">Натисніть <strong>Переглянути поправки</strong> — таблиця показує що було / що стало / різниця по кожній позиції.</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-body">
-          <div class="step-title">Прийміть або відхиліть</div>
-          <div class="step-desc"><strong>✓ Прийняти</strong> — внесіть зміни у свою облікову систему і підтвердіть. <strong>✗ Відхилити</strong> — накладна повертається експедитору.</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- API -->
-  <section class="section" id="api-auth">
-    <div class="section-number">// 07</div>
-    <h2 class="section-title">API<br><span>інтеграція</span></h2>
-    <p class="section-lead">Для адміністраторів облікових систем (1С, SAP, Excel, власні рішення). Один ендпоінт — і накладні автоматично потрапляють в ScanCount.</p>
-
-    <div class="info-box note"><strong>Base URL:</strong> <code style="font-family:var(--mono)">https://scancount.online/api</code></div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:32px 0 16px;letter-spacing:-0.5px" id="api-auth">Автентифікація</h3>
-    <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:16px">Всі POST і PATCH запити потребують заголовку <code style="font-family:var(--mono);background:var(--paper2);padding:2px 6px;border-radius:3px">X-API-Key</code>. Ключ генерується в кабінеті бухгалтера → Налаштування → API ключ.</p>
-
-    <div class="terminal">
-      <div class="terminal-bar">
-        <div class="terminal-dot r"></div>
-        <div class="terminal-dot y"></div>
-        <div class="terminal-dot g"></div>
-        <span class="terminal-title">HTTP Headers</span>
-      </div>
-      <div class="terminal-body">
-        <span class="out">Content-Type: application/json</span><br>
-        <span class="out">X-API-Key: sk_live_xxxxxxxxxxxxxxxx</span>
-      </div>
+    <div class="doc-h3">Підключення дистриб'ютора</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">В кабінеті магазину прокрутіть до розділу <strong>Мої дистриб'ютори</strong></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Натисніть <strong>+ Додати дистриб'ютора</strong> → введіть код <code>DIST-XXXXXX</code> який надав дистриб'ютор</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Після підключення з'являться папки: Приходні, Повернення, Коригувальні накладні</div></div>
     </div>
 
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 16px;letter-spacing:-0.5px" id="api-endpoints">Ендпоінти</h3>
+    <div class="doc-h3">Сканування накладної</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Натисніть <strong>📷 Сканувати накладну</strong> в кабінеті</div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Відскануйте штрихкод <code>OUT-XXXXXX</code> який показує експедитор або введіть номер вручну</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Перевірте список товарів — за потреби скоригуйте кількість</div></div>
+      <div class="step-item"><div class="step-n">4</div><div class="step-text">Натисніть <strong>✓ Підтвердити отримання</strong> — накладна закривається</div></div>
+    </div>
+  </div>
+</section>
 
-    <!-- POST /v1/invoices -->
-    <div class="api-block">
-      <div class="api-header">
-        <span class="api-method post">POST</span>
-        <span class="api-path">/v1/invoices</span>
-        <span class="api-desc">Створити накладну</span>
-      </div>
-      <div class="api-body">
-        <pre><span class="c">// Запит</span>
+<!-- ДИСТРИБ'ЮТОР -->
+<section class="doc-section" id="dist-setup" style="background:var(--bg2)">
+  <div class="doc-inner">
+    <div class="doc-number">// 04</div>
+    <h2 class="doc-title">Для <span>дистриб'ютора</span></h2>
+    <p class="doc-lead">Кабінет головного бухгалтера на scancount.online — центр управління всією логістикою. Реєстрація через email/пароль.</p>
+
+    <div class="doc-h3">Початкове налаштування</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Відкрийте <strong>scancount.online</strong> → <strong>Реєстрація дистриб'ютора</strong> → заповніть дані компанії</div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Після реєстрації отримаєте код <code>DIST-XXXXXX</code> — передайте його магазинам для підключення</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">14 днів безкоштовного пробного періоду — після цього потрібна підписка</div></div>
+    </div>
+
+    <div class="doc-h3">Управління персоналом</div>
+    <div class="info-box"><strong>Головний бухгалтер</strong> генерує коди для всіх співробітників. Кожен отримує унікальний код <code>STAFF-XXXXXX</code> для входу в app.html.</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Вкладка <strong>Співробітники</strong> → <strong>+ Додати співробітника</strong></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Введіть ім'я, телефон, роль (товарознавець / експедитор) → система генерує код автоматично</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Передайте код <code>STAFF-XXXXXX</code> співробітнику — він вводить його в app.html для входу</div></div>
+      <div class="step-item"><div class="step-n">4</div><div class="step-text">Бухгалтер (app.html) може вмикати/вимикати активність кожного співробітника</div></div>
+    </div>
+
+    <div class="doc-h3">Черга товарознавців</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Вкладка <strong>Черга</strong> — показує всі накладні що очікують обробки товарознавцем</div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Накладні розподіляються автоматично між активними товарознавцями</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Статус кожної накладної відображається в реальному часі</div></div>
+    </div>
+
+    <div class="doc-h3">Моніторинг магазинів</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Вкладка <strong>Магазини</strong> — список всіх підключених магазинів з кодами <code>SHOP-XXXXXX</code></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Для кожного магазину — кількість накладних і час останньої активності</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Код магазину використовується для тарифікації — скільки магазинів підключено</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ЕКСПЕДИТОР -->
+<section class="doc-section" id="exp-login">
+  <div class="doc-inner">
+    <div class="doc-number">// 05</div>
+    <h2 class="doc-title">Для <span>експедитора</span></h2>
+    <p class="doc-lead">Мобільний інтерфейс оптимізований для роботи однією рукою під час завантаження та розвантаження. Геолокація обов'язкова.</p>
+
+    <div class="doc-h3">Вхід по коду</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Відкрийте <strong>scancount.online/app.html</strong> → виберіть <strong>Експедитор</strong></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Введіть код <code>EXP-XXXX</code> або <code>STAFF-XXXXXX</code> який надав бухгалтер → <strong>Увійти</strong></div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Дозвольте доступ до геолокації — без неї система не дозволить підтверджувати доставки</div></div>
+    </div>
+
+    <div class="doc-h3">Сканування повернення</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Головний екран → <strong>Повернення</strong></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Натисніть на зону сканування → наведіть камеру на штрихкод <code>RET-XXXXXX</code> магазину</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Перевірте список товарів → натисніть <strong>Підтвердити забірку</strong></div></div>
+      <div class="step-item"><div class="step-n">4</div><div class="step-text">Геолокація фіксується автоматично → накладна закривається</div></div>
+    </div>
+
+    <div class="doc-h3">Коригування накладної</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Головний екран → <strong>Коригування</strong></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Відскануйте штрихкод коригувальної накладної <code>COR-XXXXXX</code></div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Внесіть зміни в кількість → <strong>Зберегти коригування</strong></div></div>
+    </div>
+    <div class="warn-box">⚠️ Без активної геолокації підтвердження неможливе — перевірте налаштування телефону.</div>
+  </div>
+</section>
+
+<!-- ТОВАРОЗНАВЕЦЬ -->
+<section class="doc-section" id="merch-work" style="background:var(--bg2)">
+  <div class="doc-inner">
+    <div class="doc-number">// 06</div>
+    <h2 class="doc-title">Для <span>товарознавця</span></h2>
+    <p class="doc-lead">Товарознавець — сполучна ланка між обліковою системою і реальністю. Отримує накладні в чергу, звіряє і підтверджує.</p>
+
+    <div class="doc-h3">Вхід та черга</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Відкрийте <strong>app.html</strong> → <strong>Товарознавець</strong> → введіть код <code>MRC-XXXX</code> або <code>STAFF-XXXXXX</code></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Відкривається список накладних призначених вам бухгалтером</div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-text">Натисніть на накладну → перевірте товари → підтвердіть або внесіть правки</div></div>
+    </div>
+
+    <div class="doc-h3">Вхідні повернення</div>
+    <div class="steps-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-text">Вкладка <strong>Повернення</strong> — показує всі повернення підтверджені експедитором</div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-text">Перевірте фізичну наявність товарів → підтвердьте або відхиліть</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section class="doc-section" id="api-auth">
+  <div class="doc-inner">
+    <div class="doc-number">// 07</div>
+    <h2 class="doc-title">API <span>інтеграція</span></h2>
+    <p class="doc-lead">REST API для інтеграції з обліковими системами (1С, M.E.Doc та ін.). Базовий URL: <code>https://scancount-api.scancount-service.workers.dev</code></p>
+
+    <div class="doc-h3">Автентифікація</div>
+    <div class="code-block">POST /v1/auth
+Content-Type: application/json
+
 {
-  <span class="k">"store_id"</span>: <span class="s">"store_001"</span>,        <span class="c">// обов'язково</span>
-  <span class="k">"type"</span>: <span class="s">"incoming"</span>,          <span class="c">// "incoming" або "return"</span>
-  <span class="k">"items"</span>: [
+  "<span class="key">dist_code</span>": <span class="str">"DIST-XXXXXX"</span>,
+  "<span class="key">api_key</span>": <span class="str">"ваш_ключ"</span>
+}
+
+Response:
+{
+  "<span class="key">token</span>": <span class="str">"Bearer eyJ..."</span>,
+  "<span class="key">expires_in</span>": <span class="val">86400</span>
+}</div>
+
+    <div class="doc-h3">Ендпоінти</div>
+    <div class="endpoint"><span class="method-badge post">POST</span><code>/v1/invoices</code><span style="color:var(--text2);font-size:13px">— Створити накладну</span></div>
+    <div class="endpoint"><span class="method-badge get">GET</span><code>/v1/invoices/{id}</code><span style="color:var(--text2);font-size:13px">— Отримати накладну</span></div>
+    <div class="endpoint"><span class="method-badge patch">PATCH</span><code>/v1/invoices/{id}</code><span style="color:var(--text2);font-size:13px">— Оновити статус</span></div>
+    <div class="endpoint"><span class="method-badge get">GET</span><code>/v1/invoices?store={code}</code><span style="color:var(--text2);font-size:13px">— Список накладних магазину</span></div>
+
+    <div class="doc-h3">Створення накладної (POST /v1/invoices)</div>
+    <div class="code-block">{
+  "<span class="key">store_code</span>": <span class="str">"SHOP-XXXXXX"</span>,
+  "<span class="key">type</span>": <span class="str">"incoming"</span>,
+  "<span class="key">items</span>": [
     {
-      <span class="k">"barcode"</span>: <span class="s">"4820001111111"</span>,  <span class="c">// обов'язково</span>
-      <span class="k">"name"</span>: <span class="s">"Молоко 1л"</span>,        <span class="c">// обов'язково</span>
-      <span class="k">"qty"</span>: <span class="v">10</span>,                  <span class="c">// обов'язково</span>
-      <span class="k">"unit"</span>: <span class="s">"шт"</span>               <span class="c">// необов'язково, default: "шт"</span>
+      "<span class="key">barcode</span>": <span class="str">"4820001234567"</span>,
+      "<span class="key">name</span>": <span class="str">"Молоко 1л"</span>,
+      "<span class="key">unit</span>": <span class="str">"шт"</span>,
+      "<span class="key">qty</span>": <span class="val">10</span>,
+      "<span class="key">price</span>": <span class="val">45.90</span>
     }
   ]
 }
 
-<span class="c">// Відповідь 201</span>
+Response:
 {
-  <span class="k">"success"</span>: <span class="v">true</span>,
-  <span class="k">"invoice_id"</span>: <span class="s">"abc123def"</span>,
-  <span class="k">"num"</span>: <span class="s">"OUT-ABC123XY"</span>,
-  <span class="k">"barcode"</span>: <span class="s">"165432198765"</span>,
-  <span class="k">"barcode_url"</span>: <span class="s">"https://api.qrserver.com/..."</span>,
-  <span class="k">"status"</span>: <span class="s">"pending"</span>,
-  <span class="k">"items_count"</span>: <span class="v">1</span>,
-  <span class="k">"created_at"</span>: <span class="s">"2026-06-06T12:00:00.000Z"</span>
-}</pre>
-      </div>
-    </div>
+  "<span class="key">id</span>": <span class="str">"OUT-7X9K2M"</span>,
+  "<span class="key">barcode</span>": <span class="str">"OUT-7X9K2M"</span>,
+  "<span class="key">status</span>": <span class="str">"pending"</span>
+}</div>
 
-    <!-- GET /v1/invoices/{id} -->
-    <div class="api-block">
-      <div class="api-header">
-        <span class="api-method get">GET</span>
-        <span class="api-path">/v1/invoices/{id}</span>
-        <span class="api-desc">Отримати накладну</span>
-      </div>
-      <div class="api-body">
-        <pre><span class="c">// {id} — це invoice_id або num накладної</span>
-<span class="c">// GET /v1/invoices/OUT-ABC123XY</span>
-<span class="c">// GET /v1/invoices/abc123def</span>
-
-<span class="c">// Відповідь 200</span>
-{
-  <span class="k">"id"</span>: <span class="s">"abc123def"</span>,
-  <span class="k">"num"</span>: <span class="s">"OUT-ABC123XY"</span>,
-  <span class="k">"status"</span>: <span class="s">"confirmed"</span>,
-  <span class="k">"shopName"</span>: <span class="s">"Продукти Петренка"</span>,
-  <span class="k">"items"</span>: [...],
-  <span class="k">"geo"</span>: { <span class="k">"lat"</span>: <span class="v">50.45</span>, <span class="k">"lng"</span>: <span class="v">30.52</span> },
-  <span class="k">"confirmedAt"</span>: <span class="s">"2026-06-06T14:30:00.000Z"</span>
-}</pre>
-      </div>
-    </div>
-
-    <!-- PATCH /v1/invoices/{id} -->
-    <div class="api-block">
-      <div class="api-header">
-        <span class="api-method patch">PATCH</span>
-        <span class="api-path">/v1/invoices/{id}</span>
-        <span class="api-desc">Коригування від експедитора</span>
-      </div>
-      <div class="api-body">
-        <pre><span class="c">// Запит (викликається автоматично з app)</span>
-{
-  <span class="k">"items"</span>: [
-    { <span class="k">"barcode"</span>: <span class="s">"4820001111111"</span>, <span class="k">"name"</span>: <span class="s">"Молоко 1л"</span>, <span class="k">"qty"</span>: <span class="v">8</span> }
-  ],
-  <span class="k">"geo"</span>: { <span class="k">"lat"</span>: <span class="v">50.45</span>, <span class="k">"lng"</span>: <span class="v">30.52</span> }
-}
-
-<span class="c">// Відповідь 200</span>
-{
-  <span class="k">"success"</span>: <span class="v">true</span>,
-  <span class="k">"invoice_id"</span>: <span class="s">"abc123def"</span>,
-  <span class="k">"status"</span>: <span class="s">"corrected"</span>,
-  <span class="k">"diff_count"</span>: <span class="v">1</span>,
-  <span class="k">"corrected_at"</span>: <span class="s">"2026-06-06T15:00:00.000Z"</span>
-}</pre>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 16px;letter-spacing:-0.5px" id="api-examples">Повний приклад — 1С інтеграція</h3>
-    <div class="terminal">
-      <div class="terminal-bar">
-        <div class="terminal-dot r"></div>
-        <div class="terminal-dot y"></div>
-        <div class="terminal-dot g"></div>
-        <span class="terminal-title">Node.js приклад</span>
-      </div>
-      <div class="terminal-body">
-        <span class="comment">// Відправка накладної в ScanCount при друці в 1С</span><br>
-        <span class="cmd">async function sendInvoiceToScanCount(invoice) {</span><br>
-        <span class="cmd">  const response = await fetch(</span><br>
-        <span class="cmd">    'https://scancount.online/api/v1/invoices',</span><br>
-        <span class="cmd">    {</span><br>
-        <span class="cmd">      method: 'POST',</span><br>
-        <span class="cmd">      headers: {</span><br>
-        <span class="cmd">        'Content-Type': 'application/json',</span><br>
-        <span class="cmd">        'X-API-Key': process.env.SCANCOUNT_API_KEY</span><br>
-        <span class="cmd">      },</span><br>
-        <span class="cmd">      body: JSON.stringify({</span><br>
-        <span class="cmd">        store_id: invoice.storeId,</span><br>
-        <span class="cmd">        items: invoice.lines.map(line => ({</span><br>
-        <span class="cmd">          barcode: line.barcode,</span><br>
-        <span class="cmd">          name: line.name,</span><br>
-        <span class="cmd">          qty: line.quantity,</span><br>
-        <span class="cmd">          unit: line.unit</span><br>
-        <span class="cmd">        }))</span><br>
-        <span class="cmd">      })</span><br>
-        <span class="cmd">    }</span><br>
-        <span class="cmd">  );</span><br>
-        <span class="cmd">  const data = await response.json();</span><br>
-        <span class="out">  // data.barcode_url — URL штрихкоду для друку</span><br>
-        <span class="out">  // data.num — номер накладної</span><br>
-        <span class="cmd">  return data;</span><br>
-        <span class="cmd">}</span>
-      </div>
-    </div>
-
-    <h3 style="font-family:var(--display);font-size:20px;font-weight:700;margin:48px 0 16px;letter-spacing:-0.5px" id="api-errors">Коди помилок</h3>
-    <table class="doc-table">
-      <thead><tr><th>Код</th><th>Причина</th><th>Рішення</th></tr></thead>
-      <tbody>
-        <tr><td class="mono">401</td><td>API ключ відсутній</td><td>Додайте заголовок X-API-Key</td></tr>
-        <tr><td class="mono">403</td><td>Невірний API ключ</td><td>Перевірте ключ в кабінеті бухгалтера</td></tr>
-        <tr><td class="mono">400</td><td>Невірний формат запиту</td><td>Перевірте наявність store_id та items</td></tr>
-        <tr><td class="mono">404</td><td>Накладну не знайдено</td><td>Перевірте invoice_id або num</td></tr>
-        <tr><td class="mono">500</td><td>Помилка Firebase</td><td>Спробуйте ще раз або зверніться в підтримку</td></tr>
-      </tbody>
+    <div class="doc-h3">Статуси накладних</div>
+    <table class="api-table">
+      <tr><th>Статус</th><th>Опис</th></tr>
+      <tr><td><code>pending</code></td><td>Створена, очікує доставки</td></tr>
+      <tr><td><code>in_delivery</code></td><td>Експедитор взяв в роботу</td></tr>
+      <tr><td><code>delivered</code></td><td>Доставлена, очікує підтвердження магазином</td></tr>
+      <tr><td><code>confirmed</code></td><td>Магазин підтвердив отримання</td></tr>
+      <tr><td><code>cancelled</code></td><td>Скасована</td></tr>
     </table>
-  </section>
 
-  <!-- СТАТУСИ -->
-  <section class="section">
-    <div class="section-number">// 08</div>
-    <h2 class="section-title">Статуси<br><span>накладних</span></h2>
-    <table class="doc-table">
-      <thead><tr><th>Статус</th><th>Опис</th><th>Хто встановлює</th></tr></thead>
-      <tbody>
-        <tr><td class="mono">pending</td><td>Накладна створена, очікує дій</td><td>API / Магазин</td></tr>
-        <tr><td class="mono">confirmed</td><td>Підтверджена експедитором з геолокацією</td><td>Експедитор</td></tr>
-        <tr><td class="mono">corrected</td><td>Є поправки від експедитора</td><td>Експедитор</td></tr>
-        <tr><td class="mono">shop_confirmed</td><td>Магазин підтвердив отримання приходної</td><td>Магазин</td></tr>
-        <tr><td class="mono">shop_confirmed_correction</td><td>Магазин підтвердив накладну з поправками</td><td>Магазин</td></tr>
-      </tbody>
-    </table>
-  </section>
+    <div class="doc-h3">Повний приклад — 1С інтеграція</div>
+    <div class="info-box"><strong>Сценарій:</strong> 1С формує накладну при відвантаженні → відправляє в ScanCount → отримує штрихкод → друкує на накладній → експедитор везе → магазин сканує.</div>
+    <div class="code-block"><span class="key">// 1. Відправка з 1С при проведенні реалізації</span>
+fetch('<span class="str">https://scancount-api.scancount-service.workers.dev/v1/invoices</span>', {
+  method: '<span class="str">POST</span>',
+  headers: {
+    '<span class="key">Authorization</span>': '<span class="str">Bearer ' + token + '</span>',
+    '<span class="key">Content-Type</span>': '<span class="str">application/json</span>'
+  },
+  body: JSON.stringify({
+    store_code: '<span class="str">SHOP-XXXXXX</span>',
+    type: '<span class="str">incoming</span>',
+    items: items <span class="key">// масив товарів з 1С</span>
+  })
+});
 
-</main>
-</div>
+<span class="key">// 2. Отримання штрихкоду і друк на накладній</span>
+<span class="key">// barcode: "OUT-7X9K2M" — надрукувати Code128 на документі</span></div>
+  </div>
+</section>
 
 <!-- FOOTER -->
-<footer>
-  <div class="footer-logo">Scan<span>Count</span></div>
-  <div class="footer-sub">// автоматизація документообігу</div>
+<footer class="footer">
+  <div>© 2026 ScanCount — система управління накладними</div>
   <div class="footer-links">
-    <a href="https://scancount.online">scancount.online</a>
-    <a href="https://scancount.online/app.html">scancount.online/app.html</a>
+    <a href="index.html">scancount.online</a>
+    <a href="app.html">Кабінет персоналу</a>
     <a href="mailto:scancount.service@gmail.com">scancount.service@gmail.com</a>
   </div>
-  <div class="footer-copy">© 2026 SCANCOUNT · ALL RIGHTS RESERVED</div>
 </footer>
 
 <script>
-// Highlight active sidebar link on scroll
-const sections = document.querySelectorAll('.section[id]');
-const links = document.querySelectorAll('.sidebar-link');
-
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      links.forEach(l => l.classList.remove('active'));
-      const active = document.querySelector(`.sidebar-link[href="#${entry.target.id}"]`);
-      if (active) active.classList.add('active');
-    }
-  });
-}, { rootMargin: '-20% 0px -70% 0px' });
-
-sections.forEach(s => observer.observe(s));
-
-// Smooth scroll for sidebar links
-links.forEach(link => {
-  link.addEventListener('click', e => {
-    e.preventDefault();
-    const id = link.getAttribute('href').slice(1);
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-});
-</script>
-
-<script>
-// Active nav highlight on scroll
-const navLinks = document.querySelectorAll('.header-nav a');
+// Active nav on scroll
+const navLinks = document.querySelectorAll('.nav a');
 const sections = document.querySelectorAll('section[id]');
-
 window.addEventListener('scroll', function() {
   let current = '';
-  sections.forEach(s => {
-    if (window.scrollY >= s.offsetTop - 120) current = s.id;
-  });
+  sections.forEach(s => { if(window.scrollY >= s.offsetTop - 100) current = s.id; });
   navLinks.forEach(a => {
-    a.style.color = a.getAttribute('href') === '#' + current ? '#fff' : '#aaa';
-    a.style.fontWeight = a.getAttribute('href') === '#' + current ? '800' : '700';
+    const active = a.getAttribute('href') === '#' + current;
+    a.classList.toggle('active', active);
   });
 });
 </script>
