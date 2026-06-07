@@ -1659,71 +1659,92 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySele
 // Використовує decodeFromVideoElement (працює в ZXing 0.19.1)
 
 
-var _camStream = null;
-var _camReader = null;
+
 var _camCallback = null;
+var _html5Qr = null;
 
 window.openCamScanner = async function(callback) {
   _camCallback = callback;
+
   if (!document.getElementById('camOverlay')) {
     var div = document.createElement('div');
     div.id = 'camOverlay';
     div.style.cssText = 'display:none;position:fixed;inset:0;background:#000;z-index:99999;flex-direction:column;font-family:sans-serif';
-    div.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(0,0,0,0.8)"><div style="color:#fff;font-size:15px;font-weight:700">📷 Сканування</div><button onclick="window.closeCamScanner()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer">✕</button></div><div style="flex:1;position:relative;overflow:hidden"><video id="camVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:260px;height:160px;border:2px solid rgba(255,255,255,0.8);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);position:relative;overflow:hidden"><div id="camScanLine" style="position:absolute;top:0;left:0;right:0;height:2px;background:#4ade80;animation:camScan 1.5s linear infinite"></div></div></div><div id="camMsg" style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:#fff;font-size:13px;background:rgba(0,0,0,0.5);padding:6px">Завантаження...</div></div>';
-    var style = document.createElement('style');
-    style.textContent = '@keyframes camScan{0%{top:0}50%{top:calc(100% - 2px)}100%{top:0}}';
-    div.appendChild(style);
+    div.innerHTML = ''
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(0,0,0,0.9);flex-shrink:0">'
+      + '<div style="color:#fff;font-size:15px;font-weight:700">📷 Сканування</div>'
+      + '<button onclick="window.closeCamScanner()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer">✕</button>'
+      + '</div>'
+      + '<div id="camReader" style="flex:1;width:100%"></div>'
+      + '<div id="camMsg" style="padding:10px;text-align:center;color:#fff;font-size:13px;background:rgba(0,0,0,0.8)">Завантаження...</div>';
     document.body.appendChild(div);
   }
+
   document.getElementById('camOverlay').style.display = 'flex';
   document.getElementById('camMsg').textContent = 'Завантаження сканера...';
-  try {
-    if (_camReader) { try { _camReader.reset(); } catch(e) {} _camReader = null; }
-    if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
-    var mod = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm');
-    var hints = new Map();
-    hints.set(mod.DecodeHintType.POSSIBLE_FORMATS, [
-      mod.BarcodeFormat.EAN_13, mod.BarcodeFormat.EAN_8,
-      mod.BarcodeFormat.CODE_128, mod.BarcodeFormat.CODE_39,
-      mod.BarcodeFormat.UPC_A, mod.BarcodeFormat.UPC_E,
-      mod.BarcodeFormat.QR_CODE
-    ]);
-    hints.set(mod.DecodeHintType.TRY_HARDER, true);
-    _camReader = new mod.BrowserMultiFormatReader(hints);
-    _camStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+
+  // Load html5-qrcode
+  if (!window.Html5Qrcode) {
+    await new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
     });
-    var video = document.getElementById('camVideo');
-    video.srcObject = _camStream;
-    await video.play();
-    document.getElementById('camMsg').textContent = 'Наведіть камеру на штрихкод';
-    window._camScanLoop();
+  }
+
+  try {
+    if (_html5Qr) {
+      try { await _html5Qr.stop(); } catch(e) {}
+      _html5Qr = null;
+    }
+
+    // Clear reader div
+    document.getElementById('camReader').innerHTML = '';
+    _html5Qr = new Html5Qrcode('camReader');
+
+    var config = {
+      fps: 15,
+      qrbox: { width: 260, height: 160 },
+      aspectRatio: 1.5,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE
+      ]
+    };
+
+    await _html5Qr.start(
+      { facingMode: 'environment' },
+      config,
+      function(code) {
+        window.closeCamScanner();
+        if (_camCallback) _camCallback(code);
+      },
+      function(err) {}
+    );
+
+    document.getElementById('camMsg').textContent = 'Наведіть на штрихкод';
+
   } catch(e) {
     document.getElementById('camMsg').textContent = 'Помилка: ' + (e.message || e);
   }
 };
 
-window._camScanLoop = async function() {
-  var video = document.getElementById('camVideo');
-  if (!_camReader || !_camStream) return;
-  try {
-    var result = await _camReader.decodeFromVideoElement(video);
-    if (result) {
-      var code = result.getText();
-      window.closeCamScanner();
-      if (_camCallback) _camCallback(code);
-      return;
-    }
-  } catch(e) {}
-  if (_camStream) requestAnimationFrame(window._camScanLoop);
-};
-
 window.closeCamScanner = function() {
-  if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
-  if (_camReader) { try { _camReader.reset(); } catch(e) {} _camReader = null; }
+  if (_html5Qr) {
+    try { _html5Qr.stop().catch(function(){}); } catch(e) {}
+    _html5Qr = null;
+  }
   var o = document.getElementById('camOverlay');
   if (o) o.style.display = 'none';
 };
+
 
 // ─────────────────────────────────────────────────────────────────
 
