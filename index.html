@@ -629,20 +629,39 @@ window.closeCamScanner = function() {
 
     document.getElementById('shopInvNum').textContent = inv.num;
     document.getElementById('shopInvDist').textContent = inv.distName || inv.shopName || 'Дистриб\'ютор';
-    const items = isCorr ? (inv.correctedItems || inv.items || []) : (inv.items || []);
+    const items = inv.items || [];
+    const origItems = inv.originalItems || [];
     document.getElementById('shopInvMeta').textContent = items.length + ' позицій';
 
-    // Список позицій
-    document.getElementById('shopInvItems').innerHTML = items.length
-      ? items.map(it => `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text)">${it.name}</div>
+    // Показуємо корекції якщо є
+    let corrInfo = '';
+    if (isCorr && inv.correctedBy) {
+      corrInfo = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#c2410c">
+        ✏️ Скориговано експедитором: <strong>${inv.correctedBy}</strong>
+        ${inv.corrections && inv.corrections.length ? '<br>' + inv.corrections.map(c =>
+          `• ${c.origName}: <s>${c.origQty}</s> → <strong>${c.newQty}</strong> ${c.origName !== c.newName ? '(назва змінена)' : ''}`
+        ).join('<br>') : ''}
+      </div>`;
+    }
+
+    // Список позицій з підсвіткою змін
+    const itemsHtml = items.length
+      ? items.map((it, i) => {
+          const orig = origItems[i];
+          const changed = orig && (orig.qty !== it.qty || orig.name !== it.name);
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);${changed?'background:#fff7ed;margin:0 -8px;padding:8px':''}">
+            <div style="flex:1${changed?';padding:0 8px':''}">
+              <div style="font-size:13px;font-weight:600;color:var(--text)">${it.name}${changed && orig.name !== it.name ? ` <span style="font-size:10px;color:#c2410c">(було: ${orig.name})</span>` : ''}</div>
               <div style="font-size:10px;color:var(--text3);font-family:monospace">${it.barcode}</div>
             </div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);font-family:monospace">${it.qty} ${it.unit||'шт'}</div>
-          </div>`).join('')
+            <div style="font-size:13px;font-weight:700;font-family:monospace${changed?';color:#c2410c':''}">
+              ${changed && orig ? `<s style="font-size:11px;color:var(--text3)">${orig.qty}</s> ` : ''}${it.qty} ${it.unit||'шт'}
+            </div>
+          </div>`;
+        }).join('')
       : '<div style="font-size:12px;color:var(--text3);text-align:center;padding:10px">Позицій немає</div>';
+
+    document.getElementById('shopInvItems').innerHTML = corrInfo + itemsHtml;
 
     document.getElementById('shopInvResult').style.display = 'block';
     document.getElementById('shopScanBtn').style.display = 'none';
@@ -653,7 +672,38 @@ window.closeCamScanner = function() {
     const inv = currentShopInvoice;
     const isCorr = inv.status === 'corrected';
 
-    // Зберігаємо підтвердження в Firebase
+    // Зберігаємо підтвердження в Firestore — блокуємо назавжди
+    try {
+      const { getFirestore, doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+      const app = getApps().length ? getApps()[0] : initializeApp(cfg);
+      const db = getFirestore(app);
+
+      // Отримуємо геолокацію
+      const getGeo = () => new Promise(resolve => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          p => resolve({lat: p.coords.latitude, lng: p.coords.longitude}),
+          () => resolve(null),
+          {timeout: 5000}
+        );
+      });
+      const geo = await getGeo();
+
+      await updateDoc(doc(db, 'invoices', inv.id), {
+        status: 'confirmed',
+        confirmedAt: serverTimestamp(),
+        confirmedBy: currentUser?.name || currentUser?.email || '—',
+        confirmedByShop: currentUser?.shopCode || '—',
+        confirmGeo: geo,
+        locked: true  // після цього ніякі зміни неможливі
+      });
+      console.log('✅ Invoice confirmed and locked:', inv.id);
+    } catch(e) {
+      console.warn('Firestore confirm failed:', e.message);
+    }
+
     if (window.fbConfirmShopInvoice) {
       await window.fbConfirmShopInvoice(inv.id, isCorr);
     }
