@@ -1371,15 +1371,19 @@ async function loadMerchInvoices() {
     const app = getApps().length ? getApps()[0] : initializeApp(cfg);
     const db = getFirestore(app);
 
-    // Завантажуємо накладні типу return зі статусом picked_up або pending
+    // Останні 30 днів, тільки активні (pending або picked_up)
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
     const q = query(
       collection(db, 'invoices'),
-      where('type', '==', 'return')
+      where('type', '==', 'return'),
+      where('status', 'in', ['pending', 'picked_up']),
+      where('createdAt', '>=', since.toISOString())
     );
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-size:14px">Немає накладних на повернення</div>';
+      wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-size:14px">Немає активних накладних за останні 30 днів</div>';
       return;
     }
 
