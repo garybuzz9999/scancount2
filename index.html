@@ -2653,14 +2653,42 @@ window.closeCamScanner = function() {
     docSaved = true;
   }
 
-    function returnInvoice() {
+    async function returnInvoice() {
     if(!scanned.length) { alert('Спочатку відскануйте товари для накладної на повернення'); return; }
 
-    const phone = '123456789'; // тестовий режим
+    const phone = currentUser?.phone || '—';
+    const shopCode = currentUser?.shopCode || '—';
+    const shopName = currentUser?.name || '—';
 
     const invNum  = 'RET-' + Date.now().toString(36).toUpperCase();
     const dateStr = new Date().toLocaleString('uk-UA');
     const total   = scanned.reduce((a,r) => a + r.price * r.qty, 0);
+
+    // ── Зберігаємо в Firestore ──────────────────────────────────
+    if (window._fbReady) {
+      try {
+        const { getFirestore, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        const fbDb = getFirestore();
+        await setDoc(doc(fbDb, 'invoices', invNum), {
+          id: invNum,
+          type: 'return',
+          status: 'pending',
+          shopCode,
+          shopName,
+          phone,
+          total,
+          items: scanned.map(r => ({ barcode: r.barcode, name: r.name, unit: r.unit, qty: r.qty, price: r.price })),
+          createdAt: new Date().toISOString(),
+          confirmedAt: null,
+          expeditorId: null,
+          geo: null
+        });
+        console.log('✅ Return invoice saved to Firestore:', invNum);
+      } catch(e) {
+        console.warn('Firestore save failed:', e.message);
+      }
+    }
+    // ────────────────────────────────────────────────────────────
     const itemsSummary = scanned.map(r => r.barcode + 'x' + r.qty).join(',');
     const qrData  = encodeURIComponent([
       invNum,
