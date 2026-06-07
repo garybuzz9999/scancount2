@@ -115,7 +115,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
   <div class="card">
     <div class="card-title">Сканувати або ввести штрих-код</div>
     <div class="scan-row">
-      <button onclick="openCamScanner(function(code){document.getElementById('barcodeInput').value=code;addItem();})" style="height:48px;width:48px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">📷</button>
+      <button onclick="window.openCamScanner(function(code){document.getElementById('barcodeInput').value=code;addItem();})" style="height:48px;width:48px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">📷</button>
       <input type="text" class="scan-input" id="barcodeInput"
         inputmode="numeric" placeholder="Відскануйте штрихкод..."
         autocomplete="off" onkeydown="if(event.key==='Enter') addItem()">
@@ -261,64 +261,76 @@ function toast(msg, isError = false) {
 <style>@keyframes scanAnim { 0%{top:4px} 50%{top:calc(100% - 6px)} 100%{top:4px} }</style>
 
 <script>
-// ── LIVE CAMERA SCANNER ──────────────────────────────────────────
-let _camStream = null;
-let _camReader = null;
-let _camCallback = null;
 
-async function openCamScanner(callback) {
+var _camCallback = null;
+var _html5Qr = null;
+
+window.openCamScanner = async function(callback) {
   _camCallback = callback;
-  const overlay = document.getElementById('camOverlay');
-  overlay.style.display = 'flex';
-  document.getElementById('camMsg').textContent = 'Завантаження сканера...';
-  try {
-    const { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm');
-    const hints = new Map();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
-      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
-      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
-      BarcodeFormat.QR_CODE
-    ]);
-    hints.set(DecodeHintType.TRY_HARDER, true);
-    _camReader = new BrowserMultiFormatReader(hints);
-    _camStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    const video = document.getElementById('camVideo');
-    video.srcObject = _camStream;
-    await video.play();
-    document.getElementById('camMsg').textContent = 'Наведіть камеру на штрихкод';
-    _scanLoop();
-  } catch(e) {
-    document.getElementById('camMsg').textContent = 'Помилка камери: ' + e.message;
+
+  if (!document.getElementById('camOverlay')) {
+    var div = document.createElement('div');
+    div.id = 'camOverlay';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:#000;z-index:99999;flex-direction:column;font-family:sans-serif';
+    div.innerHTML = ''
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(0,0,0,0.9);flex-shrink:0">'
+      + '<div style="color:#fff;font-size:15px;font-weight:700">📷 Сканування</div>'
+      + '<button onclick="window.closeCamScanner()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer">✕</button>'
+      + '</div>'
+      + '<div id="camReader" style="flex:1;width:100%"></div>'
+      + '<div id="camMsg" style="padding:10px;text-align:center;color:#fff;font-size:13px;background:rgba(0,0,0,0.8)">Завантаження...</div>';
+    document.body.appendChild(div);
   }
-}
 
-async function _scanLoop() {
-  const video = document.getElementById('camVideo');
-  if (!_camReader || !_camStream) return;
+  document.getElementById('camOverlay').style.display = 'flex';
+  document.getElementById('camMsg').textContent = 'Завантаження сканера...';
+
+  if (!window.Html5Qrcode) {
+    await new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
   try {
-    const result = await _camReader.decodeFromVideoElement(video);
-    if (result) {
-      const code = result.getText();
-      _stopCam();
-      if (_camCallback) _camCallback(code);
-      return;
-    }
-  } catch(e) {}
-  if (_camStream) requestAnimationFrame(_scanLoop);
-}
+    if (_html5Qr) { try { await _html5Qr.stop(); } catch(e) {} _html5Qr = null; }
+    document.getElementById('camReader').innerHTML = '';
+    _html5Qr = new Html5Qrcode('camReader');
+    var config = {
+      fps: 15,
+      qrbox: { width: 260, height: 160 },
+      aspectRatio: 1.5,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE
+      ]
+    };
+    await _html5Qr.start(
+      { facingMode: 'environment' },
+      config,
+      function(code) { window.closeCamScanner(); if (_camCallback) _camCallback(code); },
+      function(err) {}
+    );
+    document.getElementById('camMsg').textContent = 'Наведіть на штрихкод';
+  } catch(e) {
+    document.getElementById('camMsg').textContent = 'Помилка: ' + (e.message || e);
+  }
+};
 
-function _stopCam() {
-  if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
-  if (_camReader) { try { _camReader.reset(); } catch(e) {} _camReader = null; }
-}
+window.closeCamScanner = function() {
+  if (_html5Qr) { try { _html5Qr.stop().catch(function(){}); } catch(e) {} _html5Qr = null; }
+  var o = document.getElementById('camOverlay');
+  if (o) o.style.display = 'none';
+};
 
-function closeCamScanner() {
-  _stopCam();
-  document.getElementById('camOverlay').style.display = 'none';
-}
 </script>
 </body>
 </html>
