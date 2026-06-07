@@ -1634,25 +1634,76 @@ async function drvLoadEdit() {
 
 function markChanged(i) { document.getElementById('erow-'+i).classList.add('changed'); }
 
-function drvSendCorr() {
+async function drvSendCorr() {
   const rows = document.querySelectorAll('#editTbody tr');
-  const items = Array.from(rows).map((row, i) => ({
+  const newItems = Array.from(rows).map((row, i) => ({
     barcode: currentInvoiceItems[i] ? currentInvoiceItems[i].barcode : '',
     name: row.querySelector('.edit-inp.name').value,
     qty: parseInt(row.querySelector('.edit-inp:not(.name)').value) || 0,
     unit: currentInvoiceItems[i] ? currentInvoiceItems[i].unit : 'шт'
   }));
 
-  const send = () => drvScreen('success-edit');
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const { latitude: lat, longitude: lng } = pos.coords;
-      if (window.fbSendCorrections && currentInvoiceId) {
-        await window.fbSendCorrections(currentInvoiceId, items, lat, lng);
+  // Знаходимо зміни
+  const changes = [];
+  newItems.forEach((newItem, i) => {
+    const orig = currentInvoiceItems[i];
+    if (!orig) return;
+    if (orig.qty !== newItem.qty || orig.name !== newItem.name) {
+      changes.push({
+        barcode: orig.barcode,
+        origName: orig.name, newName: newItem.name,
+        origQty: orig.qty,   newQty: newItem.qty,
+        changedAt: new Date().toISOString()
+      });
+    }
+  });
+
+  if (changes.length === 0) {
+    alert('Змін не виявлено');
+    return;
+  }
+
+  const expeditorName = document.getElementById('drvUserName') ?
+    document.getElementById('drvUserName').textContent : 'Експедитор';
+
+  const doSave = async (lat, lng) => {
+    try {
+      const { getFirestore, doc, updateDoc, getDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+      const app = getApps().length ? getApps()[0] : initializeApp(cfg);
+      const db = getFirestore(app);
+
+      // Перевіряємо чи накладна не заблокована
+      const snap = await getDoc(doc(db, 'invoices', currentInvoiceId));
+      if (snap.exists() && snap.data().status === 'confirmed') {
+        alert('❌ Накладну вже підтверджено магазином — редагування заборонено');
+        return;
       }
-      send();
-    }, send, { timeout: 5000 });
-  } else { send(); }
+
+      await updateDoc(doc(db, 'invoices', currentInvoiceId), {
+        items: newItems,
+        originalItems: currentInvoiceItems, // зберігаємо оригінал
+        status: 'corrected',
+        correctedBy: expeditorName,
+        correctedAt: serverTimestamp(),
+        geo: lat ? { lat, lng } : null,
+        corrections: changes
+      });
+
+      drvScreen('success-edit');
+    } catch(e) {
+      alert('Помилка збереження: ' + e.message);
+    }
+  };
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => doSave(pos.coords.latitude, pos.coords.longitude),
+      () => doSave(null, null),
+      { timeout: 5000 }
+    );
+  } else { doSave(null, null); }
 }
 
 // ===== MODALS =====
