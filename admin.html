@@ -4,268 +4,907 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ScanCount — Адмін</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+const app = initializeApp(cfg);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ── AUTH STATE ────────────────────────────────────────────────
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    // Перевіряємо чи є роль адміна в Firestore
+    try {
+      const snap = await getDoc(doc(db, 'admins', user.uid));
+      if (snap.exists() && snap.data().role === 'admin') {
+        // Успішний вхід
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('adminApp').style.display = 'flex';
+        document.getElementById('headerEmail').textContent = user.email;
+        document.getElementById('headerEmail').style.display = '';
+      } else {
+        // Є акаунт але не адмін
+        await signOut(auth);
+        showAuthMsg('err', 'Доступ заборонено. Зверніться до адміністратора.');
+      }
+    } catch(e) {
+      showAuthMsg('err', 'Помилка перевірки прав: ' + e.message);
+    }
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('adminApp').style.display = 'none';
+  }
+});
+
+// ── LOGIN ─────────────────────────────────────────────────────
+window.adminLogin = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) return showAuthMsg('err', 'Введіть email і пароль');
+  showAuthMsg('ok', 'Вхід...');
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) {
+    const msg = e.code === 'auth/invalid-credential' ? 'Невірний email або пароль' : e.message;
+    showAuthMsg('err', msg);
+  }
+};
+
+// ── REGISTER (перший запуск) ──────────────────────────────────
+window.adminRegister = async function() {
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  const secret = document.getElementById('regSecret').value.trim();
+
+  if (!email || !email.includes('@')) return showAuthMsg('err', 'Введіть коректний email');
+  if (!pass || pass.length < 8) return showAuthMsg('err', 'Пароль мінімум 8 символів');
+  if (pass !== pass2) return showAuthMsg('err', 'Паролі не співпадають');
+  if (secret !== 'scancount2026admin') return showAuthMsg('err', 'Невірний секретний ключ');
+
+  showAuthMsg('ok', 'Реєстрація...');
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    // Зберігаємо роль адміна
+    await setDoc(doc(db, 'admins', cred.user.uid), {
+      email, role: 'admin', createdAt: new Date().toISOString()
+    });
+    showAuthMsg('ok', '✓ Зареєстровано!');
+  } catch(e) {
+    const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується' : e.message;
+    showAuthMsg('err', msg);
+  }
+};
+
+// ── LOGOUT ────────────────────────────────────────────────────
+window.adminLogout = async function() {
+  if (confirm('Вийти з адмінки?')) await signOut(auth);
+};
+
+function showAuthMsg(type, text) {
+  const el = document.getElementById('authMsg');
+  el.textContent = text;
+  el.style.color = type === 'err' ? '#dc2626' : '#15803d';
+  el.style.display = 'block';
+}
+</script>
 <style>
-:root {
-  --bg: #f5f4f0; --surface: #fff; --surface2: #f0ede8;
-  --border: #e2ddd8; --border2: #ccc8c2;
-  --text: #1a1916; --text2: #6b6760; --text3: #9e9a95;
-  --accent: #1a4a8a; --accent-bg: #e8eef7;
-  --success: #1a6640; --success-bg: #e6f4ec;
-  --danger: #a02020; --danger-bg: #faeaea;
-  --mono: 'JetBrains Mono', monospace;
-  --sans: 'Manrope', sans-serif;
-  --radius: 10px; --radius-lg: 14px;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#e84c2b;
+  --orange-light:#fff2ef;
+  --blue:#1e40af;
+  --blue-light:#eff6ff;
+  --green:#15803d;
+  --green-light:#f0fdf4;
+  --red:#dc2626;
+  --red-light:#fef2f2;
+  --yellow:#d97706;
+  --yellow-light:#fffbeb;
+  --text:#111827;
+  --text2:#6b7280;
+  --text3:#9ca3af;
+  --bg:#f9fafb;
+  --surface:#ffffff;
+  --border:#e5e7eb;
+  --radius:10px;
+  --shadow:0 1px 3px rgba(0,0,0,0.1);
+  --shadow-lg:0 4px 12px rgba(0,0,0,0.08);
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100dvh; display: flex; flex-direction: column; }
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:inherit;text-decoration:none}
 
-/* LOGIN */
-#loginPage {
-  flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px;
+/* ── HEADER ── */
+.header{background:var(--text);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-size:18px;font-weight:900;color:#fff;letter-spacing:-0.5px}
+.logo span{color:var(--orange)}
+.header-right{display:flex;align-items:center;gap:12px}
+.admin-badge{background:var(--orange);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;letter-spacing:0.5px}
+.header-user{font-size:13px;color:#9ca3af}
+
+/* ── LAYOUT ── */
+.layout{display:flex;min-height:calc(100vh - 56px)}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);padding:16px 0;flex-shrink:0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;transition:all 0.25s}
+.sidebar.hidden{display:none}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--orange-light);color:var(--orange);border-left-color:var(--orange);font-weight:600}
+.nav-section{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:16px 16px 6px}
+.main{flex:1;padding:24px;overflow-x:hidden}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.stat-label{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px}
+.stat-value{font-size:28px;font-weight:800;letter-spacing:-1px}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* ── TABLE ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.card-title{font-size:15px;font-weight:700}
+.card-sub{font-size:12px;color:var(--text3)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 14px;background:var(--bg);font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap}
+.tbl td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fafafa}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:100px;font-size:11px;font-weight:700}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-yellow{background:var(--yellow-light);color:var(--yellow)}
+.badge-blue{background:var(--blue-light);color:var(--blue)}
+.badge-gray{background:var(--bg);color:var(--text2);border:1px solid var(--border)}
+
+/* ── BUTTONS ── */
+.btn{height:32px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all 0.15s}
+.btn:hover{border-color:var(--text2)}
+.btn-green{background:var(--green-light);border-color:var(--green);color:var(--green)}
+.btn-red{background:var(--red-light);border-color:var(--red);color:var(--red)}
+.btn-orange{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn-sm{height:26px;padding:0 8px;font-size:11px}
+
+/* ── TARIFF ── */
+.tariff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.tariff-card{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;transition:all 0.15s}
+.tariff-card:hover,.tariff-card.active{border-color:var(--orange);background:var(--orange-light)}
+.tariff-range{font-size:13px;font-weight:700;margin-bottom:4px}
+.tariff-price{font-size:20px;font-weight:900;color:var(--orange)}
+.tariff-unit{font-size:10px;color:var(--text3)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:16px;padding:24px;width:100%;max-width:480px;box-shadow:var(--shadow-lg)}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px}
+.field input,.field select{width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;outline:none}
+.field input:focus,.field select:focus{border-color:var(--orange)}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* ── IBAN BLOCK ── */
+.iban-card{background:linear-gradient(135deg,#1e1e2e,#2d2d44);border-radius:12px;padding:20px;color:#fff;margin-bottom:20px}
+.iban-label{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.iban-value{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;letter-spacing:1px;color:#fff;margin-bottom:16px}
+.iban-row{display:flex;justify-content:space-between;font-size:12px;color:#9ca3af;margin-bottom:4px}
+.iban-row span:last-child{color:#fff;font-weight:500}
+
+/* ── PAGE TITLES ── */
+.page-title{font-size:22px;font-weight:900;margin-bottom:6px;letter-spacing:-0.5px}
+.page-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
+
+/* ── SEARCH ── */
+.search-row{display:flex;gap:10px;margin-bottom:16px}
+.search-input{flex:1;height:38px;border:1.5px solid var(--border);border-radius:8px;padding:0 12px;font-size:13px;font-family:inherit;outline:none}
+.search-input:focus{border-color:var(--orange)}
+
+/* ── SCREENS ── */
+.screen{display:none}
+.screen.active{display:block}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  .sidebar{position:fixed;top:56px;left:0;bottom:0;z-index:99;display:none;box-shadow:4px 0 20px rgba(0,0,0,0.15)}
+  .sidebar.open{display:block}
+  #headerEmail{display:none!important}
+  .main{padding:16px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .tbl th:nth-child(n+4),.tbl td:nth-child(n+4){display:none}
 }
-.login-box {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 32px 28px;
-  width: 100%; max-width: 360px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+@media(min-width:769px){
+  .sidebar{display:block!important}
 }
-.login-logo {
-  font-family: var(--mono); font-size: 22px; font-weight: 700;
-  color: var(--accent); letter-spacing: 2px; margin-bottom: 6px;
-}
-.login-sub { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
-.field { margin-bottom: 14px; }
-.field label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
-.field input {
-  width: 100%; height: 46px; font-family: var(--mono); font-size: 15px;
-  border: 1.5px solid var(--border2); border-radius: var(--radius);
-  background: var(--surface2); color: var(--text); padding: 0 14px; outline: none;
-}
-.field input:focus { border-color: var(--accent); }
-.btn-login {
-  width: 100%; height: 48px; background: var(--accent); color: #fff;
-  border: none; border-radius: var(--radius); font-family: var(--sans);
-  font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 4px;
-}
-.btn-login:active { opacity: 0.85; }
-.login-error { font-size: 12px; color: var(--danger); margin-top: 8px; display: none; text-align: center; }
-
-/* ADMIN PANEL */
-#adminPage { display: none; flex: 1; flex-direction: column; }
-
-header {
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-  position: sticky; top: 0; z-index: 100;
-}
-.header-logo { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
-.header-badge { background: var(--danger-bg); color: var(--danger); font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 20px; border: 1px solid #e0aaaa; }
-.btn-logout { margin-left: auto; background: none; border: 1px solid var(--border2); color: var(--text2); padding: 6px 14px; border-radius: var(--radius); font-family: var(--sans); font-weight: 600; font-size: 13px; cursor: pointer; }
-
-.content { padding: 20px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
-
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
-.card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-
-.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.stat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
-.stat-val { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; }
-.stat-label { font-size: 11px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-.info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-.info-row:last-child { border-bottom: none; }
-.info-label { color: var(--text3); }
-.info-val { font-weight: 600; font-family: var(--mono); font-size: 12px; }
-
-.section-coming {
-  background: var(--accent-bg); border: 1px dashed #b8cfe8;
-  border-radius: var(--radius); padding: 20px; text-align: center;
-  color: var(--text2); font-size: 13px; line-height: 1.7;
-}
-
-footer {
-  background: #1a1916; padding: 12px 20px; text-align: center;
-  font-size: 12px; color: #666; display: flex; align-items: center;
-  justify-content: center; gap: 16px; flex-wrap: wrap;
-}
-footer a { color: #888; text-decoration: none; }
-
-.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--success); color: #fff; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 24px; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
-.toast.show { transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="loginPage">
-  <div class="login-box">
-    <div class="login-logo">SCANCOUNT</div>
-    <div class="login-sub">Адміністративна панель</div>
-    <div class="field">
-      <label>Логін</label>
-      <input type="text" id="loginInput" placeholder="admin" autocomplete="off">
+<!-- AUTH SCREEN -->
+<div id="authScreen" style="display:flex;position:fixed;inset:0;background:#f9fafb;z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px;width:100%;max-width:400px;box-shadow:0 10px 30px rgba(0,0,0,0.08)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:28px;font-weight:900;letter-spacing:-1px">Scan<span style="color:#e84c2b">Count</span></div>
+      <div style="font-size:13px;color:#6b7280;margin-top:4px">Адміністративна панель</div>
     </div>
-    <div class="field">
-      <label>Пароль</label>
-      <input type="password" id="passInput" placeholder="••••••••"
-        onkeydown="if(event.key==='Enter') doLogin()">
+
+    <!-- TABS -->
+    <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid #e5e7eb">
+      <button id="tabLogin" onclick="switchTab('login')" style="flex:1;padding:10px;border:none;background:none;font-size:14px;font-weight:600;color:#e84c2b;border-bottom:2px solid #e84c2b;margin-bottom:-2px;cursor:pointer">Увійти</button>
+      <button id="tabReg" onclick="switchTab('reg')" style="flex:1;padding:10px;border:none;background:none;font-size:14px;font-weight:600;color:#6b7280;cursor:pointer">Реєстрація</button>
     </div>
-    <button class="btn-login" onclick="doLogin()">Увійти</button>
-    <div class="login-error" id="loginError">Невірний логін або пароль</div>
+
+    <!-- LOGIN FORM -->
+    <div id="formLogin">
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Email</label>
+        <input id="loginEmail" type="email" placeholder="admin@scancount.online"
+          style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;outline:none"
+          onfocus="this.style.borderColor='#e84c2b'" onblur="this.style.borderColor='#e5e7eb'"
+          onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Пароль</label>
+        <input id="loginPass" type="password" placeholder="••••••••"
+          style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;outline:none"
+          onfocus="this.style.borderColor='#e84c2b'" onblur="this.style.borderColor='#e5e7eb'"
+          onkeydown="if(event.key==='Enter')window.adminLogin()">
+      </div>
+      <button onclick="window.adminLogin()" style="width:100%;height:48px;background:#e84c2b;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Увійти →</button>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="formReg" style="display:none">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Email</label>
+        <input id="regEmail" type="email" placeholder="admin@scancount.online"
+          style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Пароль (мін. 8 символів)</label>
+        <input id="regPass" type="password" placeholder="••••••••"
+          style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Повторити пароль</label>
+        <input id="regPass2" type="password" placeholder="••••••••"
+          style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Секретний ключ</label>
+        <input id="regSecret" type="password" placeholder="Тільки для адміна"
+          style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <button onclick="window.adminRegister()" style="width:100%;height:48px;background:#e84c2b;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Зареєструватись</button>
+    </div>
+
+    <div id="authMsg" style="display:none;text-align:center;font-size:13px;font-weight:600;margin-top:14px"></div>
   </div>
 </div>
 
-<!-- ADMIN PANEL -->
-<div id="adminPage">
-  <header>
-    <div class="header-logo">SCANCOUNT</div>
-    <span class="header-badge">🔒 АДМІН</span>
-    <button class="btn-logout" onclick="doLogout()">Вийти</button>
-  </header>
+<!-- ADMIN APP -->
+<div id="adminApp" style="display:none;flex-direction:column;min-height:100vh">
 
-  <div class="content">
+<!-- HEADER -->
+<header class="header">
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="btn btn-sm" id="menuToggle" onclick="toggleMenu()" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;font-size:18px;width:36px;padding:0">☰</button>
+    <div class="logo">Scan<span>Count</span></div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">АДМІН</span>
+    <span class="header-user" style="display:none" id="headerEmail">admin@scancount.online</span>
+    <button class="btn btn-sm" onclick="window.adminLogout()">Вийти</button>
+  </div>
+</header>
 
-    <!-- Статистика -->
-    <div class="card">
-      <div class="card-title">📊 Статистика бази</div>
-      <div class="stat-grid">
-        <div class="stat-box">
-          <div class="stat-val">41k</div>
-          <div class="stat-label">Товарів в KV</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-val">151k</div>
-          <div class="stat-label">Listex база</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-val" id="statUsers">—</div>
-          <div class="stat-label">Сесій сьогодні</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-val">✅</div>
-          <div class="stat-label">Worker статус</div>
-        </div>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="nav-section">Головне</div>
+  <div class="nav-item active" onclick="showScreen('dashboard')">📊 Дашборд</div>
+  <div class="nav-item" onclick="showScreen('distributors')">🏭 Дистриб'ютори</div>
+  <div class="nav-item" onclick="showScreen('payments')">💳 Оплати</div>
+
+  <div class="nav-section">Налаштування</div>
+  <div class="nav-item" onclick="showScreen('legal')">🏢 Юридичні особи</div>
+  <div class="nav-item" onclick="showScreen('tariffs')">💰 Тарифи</div>
+
+  <div class="nav-section">Система</div>
+  <div class="nav-item" onclick="showScreen('products')">📦 База товарів</div>
+  <div class="nav-item" onclick="showScreen('logs')">📋 Логи</div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="screen active" id="screen-dashboard">
+    <div class="page-title">Дашборд</div>
+    <div class="page-sub">Стан системи на сьогодні — 7 червня 2026</div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Дистриб'ютори</div>
+        <div class="stat-value" style="color:var(--blue)">3</div>
+        <div class="stat-sub">2 активних · 1 пробний</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Магазини</div>
+        <div class="stat-value" style="color:var(--green)">17</div>
+        <div class="stat-sub">підключених</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">До отримання</div>
+        <div class="stat-value" style="color:var(--orange)">900</div>
+        <div class="stat-sub">грн до 5 липня</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">База товарів</div>
+        <div class="stat-value" style="color:var(--text)">151K</div>
+        <div class="stat-sub">штрихкодів</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Накладних сьогодні</div>
+        <div class="stat-value" style="color:var(--text)">24</div>
+        <div class="stat-sub">12 підтверджено</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Відключити 5-го</div>
+        <div class="stat-value" style="color:var(--red)">1</div>
+        <div class="stat-sub">не заплатив</div>
       </div>
     </div>
 
-    <!-- Інфо -->
+    <!-- Найближчі дії -->
     <div class="card">
-      <div class="card-title">⚙️ Системна інформація</div>
-      <div class="info-row">
-        <span class="info-label">Сайт</span>
-        <span class="info-val">scancount.online</span>
+      <div class="card-header">
+        <div>
+          <div class="card-title">⚡ Потрібна увага</div>
+          <div class="card-sub">До 5 липня</div>
+        </div>
       </div>
-      <div class="info-row">
-        <span class="info-label">Worker</span>
-        <span class="info-val" id="workerStatus">перевірка...</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Email</span>
-        <span class="info-val">scancount.service@gmail.com</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Версія</span>
-        <span class="info-val">1.0.0</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Дата</span>
-        <span class="info-val" id="currentDate">—</span>
-      </div>
+      <table class="tbl">
+        <thead><tr>
+          <th>Дистриб'ютор</th>
+          <th>Магазинів</th>
+          <th>Сума</th>
+          <th>Статус</th>
+          <th>Дія</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>ТОВ Мегадіст</strong><br><span class="mono" style="color:var(--text3)">DIST-F0JI84</span></td>
+            <td>7</td>
+            <td><strong>300 грн</strong></td>
+            <td><span class="badge badge-yellow">⏳ Не оплачено</span></td>
+            <td>
+              <button class="btn btn-green btn-sm" onclick="confirmPayment('DIST-F0JI84',300)">✓ Оплачено</button>
+              <button class="btn btn-red btn-sm" onclick="disconnectDist('DIST-F0JI84')">Відключити</button>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>ФОП Коваленко</strong><br><span class="mono" style="color:var(--text3)">DIST-A2B3C4</span></td>
+            <td>5</td>
+            <td><strong>300 грн</strong></td>
+            <td><span class="badge badge-green">✓ Оплачено</span></td>
+            <td><button class="btn btn-sm" disabled>Активний</button></td>
+          </tr>
+          <tr>
+            <td><strong>ТОВ Фреш Логістик</strong><br><span class="mono" style="color:var(--text3)">DIST-X9Y8Z7</span></td>
+            <td>2</td>
+            <td><strong>—</strong></td>
+            <td><span class="badge badge-blue">🎁 Пробний</span></td>
+            <td><span style="font-size:11px;color:var(--text3)">до 2 серп.</span></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-
-    <!-- Швидкі дії -->
-    <div class="card">
-      <div class="card-title">🚀 Швидкі дії</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <a href="index.html" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
-          📋 Перейти до переобліку
-        </a>
-        <a href="price-tags.html" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
-          🏷 Друк цінників
-        </a>
-        <a href="https://github.com/garybuzz9999/scancount-import/actions" target="_blank" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
-          🔄 GitHub Actions (парсери)
-        </a>
-        <a href="https://dash.cloudflare.com" target="_blank" style="display:block;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);text-decoration:none;font-size:13px;font-weight:600">
-          ☁️ Cloudflare Dashboard (KV)
-        </a>
-      </div>
-    </div>
-
-    <!-- Бек-офіс дистриб'юторів -->
-    <div class="card">
-      <div class="card-title">🏢 Бек-офіс дистриб'юторів</div>
-      <div class="section-coming">
-        🚧 В розробці<br>
-        <span style="font-size:12px;color:var(--text3)">
-          Управління дистриб'юторами, накладні,<br>
-          підтвердження штрих-кодами — наступний етап
-        </span>
-      </div>
-    </div>
-
   </div>
 
-  <footer>
-    <span>© 2026 scancount.online · <a href="mailto:scancount.service@gmail.com">scancount.service@gmail.com</a></span>
-  </footer>
+  <!-- DISTRIBUTORS -->
+  <div class="screen" id="screen-distributors">
+    <div class="page-title">Дистриб'ютори</div>
+    <div class="page-sub">Всі зареєстровані дистриб'ютори</div>
+
+    <div class="search-row">
+      <input type="text" class="search-input" placeholder="Пошук по назві або коду...">
+      <button class="btn btn-orange" onclick="showModal('addDist')">+ Додати</button>
+    </div>
+
+    <div class="card">
+      <table class="tbl">
+        <thead><tr>
+          <th>Назва</th>
+          <th>Код</th>
+          <th>Магазини</th>
+          <th>Тариф</th>
+          <th>Статус</th>
+          <th>Наст. оплата</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="distTable">
+          <tr>
+            <td><strong>ТОВ Мегадіст</strong><br><span style="font-size:11px;color:var(--text3)">+380 67 123 45 67</span></td>
+            <td class="mono">DIST-F0JI84</td>
+            <td><strong>7</strong></td>
+            <td>300 грн/міс</td>
+            <td><span class="badge badge-yellow">⏳ Не оплачено</span></td>
+            <td style="font-size:12px">2 лип. 2026</td>
+            <td>
+              <button class="btn btn-sm" onclick="showDistDetails('DIST-F0JI84')">Деталі</button>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>ФОП Коваленко</strong><br><span style="font-size:11px;color:var(--text3)">+380 50 987 65 43</span></td>
+            <td class="mono">DIST-A2B3C4</td>
+            <td><strong>5</strong></td>
+            <td>300 грн/міс</td>
+            <td><span class="badge badge-green">✓ Активний</span></td>
+            <td style="font-size:12px">2 лип. 2026</td>
+            <td>
+              <button class="btn btn-sm" onclick="showDistDetails('DIST-A2B3C4')">Деталі</button>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>ТОВ Фреш Логістик</strong><br><span style="font-size:11px;color:var(--text3)">+380 63 456 78 90</span></td>
+            <td class="mono">DIST-X9Y8Z7</td>
+            <td><strong>2</strong></td>
+            <td>—</td>
+            <td><span class="badge badge-blue">🎁 Пробний до 2 серп.</span></td>
+            <td style="font-size:12px">2 серп. 2026</td>
+            <td>
+              <button class="btn btn-sm" onclick="showDistDetails('DIST-X9Y8Z7')">Деталі</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div class="screen" id="screen-payments">
+    <div class="page-title">Оплати</div>
+    <div class="page-sub">Рахунки та підтвердження платежів</div>
+
+    <div class="card" style="background:var(--yellow-light);border-color:#fde68a;margin-bottom:20px">
+      <div class="card-header" style="border:none;padding-bottom:0">
+        <div class="card-title" style="color:var(--yellow)">⚠️ Очікують оплати до 5 липня</div>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Дистриб'ютор</th><th>Магазинів</th><th>Сума</th><th>Юрособа</th><th>Рахунок від</th><th></th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>ТОВ Мегадіст</strong> <span class="mono" style="font-size:11px">DIST-F0JI84</span></td>
+            <td>7</td>
+            <td><strong style="color:var(--orange)">300 грн</strong></td>
+            <td style="font-size:12px">ФОП Іваненко С.О.</td>
+            <td style="font-size:12px">2 черв. 2026</td>
+            <td>
+              <button class="btn btn-green" onclick="confirmPayment('DIST-F0JI84',300)">✓ Підтвердити</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:16px">
+        <button class="btn btn-orange" onclick="showModal('issueInvoice')">📄 Виставити рахунок вручну</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Історія платежів</div>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Дата</th><th>Дистриб'ютор</th><th>Магазинів</th><th>Сума</th><th>Статус</th></tr></thead>
+        <tbody>
+          <tr>
+            <td style="font-size:12px">04.06.2026</td>
+            <td>ФОП Коваленко <span class="mono" style="font-size:11px">DIST-A2B3C4</span></td>
+            <td>5</td>
+            <td>300 грн</td>
+            <td><span class="badge badge-green">✓ Оплачено</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px">03.06.2026</td>
+            <td>ТОВ Мегадіст <span class="mono" style="font-size:11px">DIST-F0JI84</span></td>
+            <td>7</td>
+            <td>300 грн</td>
+            <td><span class="badge badge-green">✓ Оплачено</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px">04.05.2026</td>
+            <td>ФОП Коваленко <span class="mono" style="font-size:11px">DIST-A2B3C4</span></td>
+            <td>4</td>
+            <td>300 грн</td>
+            <td><span class="badge badge-green">✓ Оплачено</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LEGAL ENTITIES -->
+  <div class="screen" id="screen-legal">
+    <div class="page-title">Юридичні особи</div>
+    <div class="page-sub">Ваші компанії для виставлення рахунків</div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      <button class="btn btn-orange" onclick="showModal('addLegal')">+ Додати юрособу</button>
+    </div>
+
+    <div id="legalList">
+      <!-- ФОП -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header">
+          <div>
+            <div class="card-title">ФОП Іваненко Сергій Олексійович</div>
+            <div class="card-sub">ФОП · ІПН: 1234567890</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge badge-green">✓ Активна</span>
+            <button class="btn btn-sm" onclick="editLegal('fop1')">Редагувати</button>
+          </div>
+        </div>
+        <div style="padding:14px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+          <div><span style="color:var(--text3)">IBAN:</span><br><strong class="mono" style="font-size:12px">UA12 3456 7890 1234 5678 9012 3456 7</strong></div>
+          <div><span style="color:var(--text3)">Банк:</span><br><strong>АТ КБ «ПриватБанк»</strong></div>
+          <div><span style="color:var(--text3)">МФО:</span><br><strong>305299</strong></div>
+          <div><span style="color:var(--text3)">Призначених клієнтів:</span><br><strong>2 дистриб'ютори</strong></div>
+        </div>
+        <div style="padding:0 18px 14px;display:flex;gap:8px">
+          <button class="btn btn-sm btn-orange" onclick="assignLegal('fop1')">Призначити клієнту</button>
+        </div>
+      </div>
+
+      <!-- ТОВ placeholder -->
+      <div class="card" style="border:2px dashed var(--border);background:transparent;box-shadow:none">
+        <div style="padding:24px;text-align:center;color:var(--text3)">
+          <div style="font-size:24px;margin-bottom:8px">🏢</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">Додайте другу юрособу</div>
+          <div style="font-size:12px;margin-bottom:14px">ТОВ або другий ФОП з іншими реквізитами</div>
+          <button class="btn btn-orange" onclick="showModal('addLegal')">+ Додати</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TARIFFS -->
+  <div class="screen" id="screen-tariffs">
+    <div class="page-title">Тарифи</div>
+    <div class="page-sub">Вартість підписки залежить від кількості підключених магазинів</div>
+
+    <div class="tariff-grid">
+      <div class="tariff-card active">
+        <div class="tariff-range">1–10 магазинів</div>
+        <div class="tariff-price">300</div>
+        <div class="tariff-unit">грн / місяць</div>
+      </div>
+      <div class="tariff-card">
+        <div class="tariff-range">11–20 магазинів</div>
+        <div class="tariff-price">600</div>
+        <div class="tariff-unit">грн / місяць</div>
+      </div>
+      <div class="tariff-card">
+        <div class="tariff-range">21–50 магазинів</div>
+        <div class="tariff-price">1500</div>
+        <div class="tariff-unit">грн / місяць</div>
+      </div>
+      <div class="tariff-card">
+        <div class="tariff-range">51–100 магазинів</div>
+        <div class="tariff-price">3000</div>
+        <div class="tariff-unit">грн / місяць</div>
+      </div>
+      <div class="tariff-card">
+        <div class="tariff-range">100+ магазинів</div>
+        <div class="tariff-price">5000</div>
+        <div class="tariff-unit">грн / місяць</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Правила пробного періоду</div></div>
+      <div style="padding:18px;font-size:14px;line-height:2;color:var(--text2)">
+        <div>📅 Пробний період починається з дня реєстрації</div>
+        <div>📅 Закінчується <strong>2-го числа наступного місяця</strong> але не раніше ніж через <strong>14 днів</strong></div>
+        <div>🏪 Максимум <strong>3 магазини</strong> на пробному тарифі</div>
+        <div>💳 Рахунок виставляється <strong>2-го числа</strong> кожного місяця</div>
+        <div>⏰ Оплата до <strong>5-го числа</strong></div>
+        <div>🔴 Не оплатив до 5-го — відключається <strong>5-го</strong></div>
+        <div>✅ Заплатив пізніше — підключається одразу, але цикл <strong>не зсувається</strong> — наступний рахунок 2-го числа</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IBAN -->
+  <div class="screen" id="screen-iban">
+    <div class="page-title">Реквізити</div>
+    <div class="page-sub">Банківські реквізити для отримання оплати</div>
+
+    <div class="iban-card">
+      <div class="iban-label">IBAN</div>
+      <div class="iban-value" id="ibanValue">UA12 3456 7890 1234 5678 9012 3456 7</div>
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;margin-top:4px">
+        <div class="iban-row"><span>Отримувач:</span><span id="ibanName">ФОП Іваненко Сергій Олексійович</span></div>
+        <div class="iban-row"><span>ЄДРПОУ/ІПН:</span><span id="ibanCode">1234567890</span></div>
+        <div class="iban-row"><span>Банк:</span><span id="ibanBank">АТ КБ «ПриватБанк»</span></div>
+        <div class="iban-row"><span>МФО:</span><span id="ibanMfo">305299</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Редагувати реквізити</div></div>
+      <div style="padding:18px">
+        <div class="field"><label>IBAN</label><input type="text" id="editIban" value="UA12 3456 7890 1234 5678 9012 3456 7"></div>
+        <div class="field"><label>Отримувач (ПІБ або назва)</label><input type="text" id="editName" value="ФОП Іваненко Сергій Олексійович"></div>
+        <div class="field"><label>ЄДРПОУ / ІПН</label><input type="text" id="editCode" value="1234567890"></div>
+        <div class="field"><label>Банк</label><input type="text" id="editBank" value="АТ КБ «ПриватБанк»"></div>
+        <div class="field"><label>МФО</label><input type="text" id="editMfo" value="305299"></div>
+        <button class="btn btn-orange" onclick="saveIban()">💾 Зберегти реквізити</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Призначення платежу</div></div>
+      <div style="padding:18px;font-size:13px;color:var(--text2);line-height:1.7">
+        Шаблон: <code style="background:var(--bg);padding:4px 8px;border-radius:4px;color:var(--orange)">Оплата підписки ScanCount за [місяць] [рік], дистриб'ютор [DIST-XXXXXX]</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCTS -->
+  <div class="screen" id="screen-products">
+    <div class="page-title">База товарів</div>
+    <div class="page-sub">Штрихкоди збережені в Firestore</div>
+
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat-card">
+        <div class="stat-label">Всього в базі</div>
+        <div class="stat-value">151K</div>
+        <div class="stat-sub">штрихкодів</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Додано сьогодні</div>
+        <div class="stat-value" style="color:var(--green)">23</div>
+        <div class="stat-sub">нових записів</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Джерело</div>
+        <div class="stat-value" style="font-size:16px">Listex</div>
+        <div class="stat-sub">+ Cloudflare Worker</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGS -->
+  <div class="screen" id="screen-logs">
+    <div class="page-title">Логи</div>
+    <div class="page-sub">Останні події в системі</div>
+    <div class="card">
+      <table class="tbl">
+        <thead><tr><th>Час</th><th>Подія</th><th>Хто</th><th>Деталі</th></tr></thead>
+        <tbody>
+          <tr><td class="mono" style="font-size:11px">07.06 18:45</td><td><span class="badge badge-green">✓ Підтверджено</span></td><td>Магазин SHOP-PT7K2M</td><td style="font-size:12px">Накладна OUT-X7K2PM</td></tr>
+          <tr><td class="mono" style="font-size:11px">07.06 17:32</td><td><span class="badge badge-blue">📦 Повернення</span></td><td>Магазин SHOP-GN9X4P</td><td style="font-size:12px">RET-M3K9A2 · 3 позиції</td></tr>
+          <tr><td class="mono" style="font-size:11px">07.06 16:20</td><td><span class="badge badge-yellow">✏️ Коригування</span></td><td>Експедитор Коваль Д.</td><td style="font-size:12px">OUT-A4B5C6 · qty змінено</td></tr>
+          <tr><td class="mono" style="font-size:11px">07.06 14:10</td><td><span class="badge badge-gray">👤 Реєстрація</span></td><td>Новий магазин</td><td style="font-size:12px">SHOP-IR5N0W · ТОВ Фреш</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal">
+    <div class="modal-title" id="modalTitle">Деталі</div>
+    <div id="modalBody"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">Закрити</button>
+    </div>
+  </div>
+</div>
 
 <script>
-const ADMIN_LOGIN = 'admin';
-const ADMIN_PASS = 'admin123456';
-const WORKER_URL = 'https://scancount-barcode.scancount-service.workers.dev';
+// ── NAVIGATION ──────────────────────────────────────────────────
+function toggleMenu() {
+  const sidebar = document.querySelector('.sidebar');
+  sidebar.classList.toggle('open');
+}
 
-function doLogin() {
-  const login = document.getElementById('loginInput').value.trim();
-  const pass = document.getElementById('passInput').value;
-  if (login === ADMIN_LOGIN && pass === ADMIN_PASS) {
-    document.getElementById('loginPage').style.display = 'none';
-    document.getElementById('adminPage').style.display = 'flex';
-    sessionStorage.setItem('adminAuth', '1');
-    initAdmin();
-  } else {
-    document.getElementById('loginError').style.display = 'block';
-    document.getElementById('passInput').value = '';
-    document.getElementById('passInput').focus();
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  // Close menu on mobile after selection
+  if (window.innerWidth <= 768) {
+    document.querySelector('.sidebar').classList.remove('open');
   }
 }
 
-function doLogout() {
-  sessionStorage.removeItem('adminAuth');
-  document.getElementById('loginPage').style.display = 'flex';
-  document.getElementById('adminPage').style.display = 'none';
-}
+// ── MODAL ────────────────────────────────────────────────────────
+function showModal(type, data) {
+  document.getElementById('overlay').classList.add('show');
 
-async function initAdmin() {
-  // Дата
-  document.getElementById('currentDate').textContent = new Date().toLocaleDateString('uk-UA');
-
-  // Перевіряємо Worker
-  try {
-    const r = await fetch(WORKER_URL + '/4820016254879');
-    const d = await r.json();
-    document.getElementById('workerStatus').textContent = d.found ? '✅ Online' : '⚠️ Відповідає';
-    document.getElementById('workerStatus').style.color = d.found ? 'var(--success)' : 'var(--warn)';
-  } catch(e) {
-    document.getElementById('workerStatus').textContent = '❌ Offline';
-    document.getElementById('workerStatus').style.color = 'var(--danger)';
+  if (type === 'addDist') {
+    document.getElementById('modalTitle').textContent = 'Додати дистриб\'ютора';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="field"><label>Назва компанії</label><input type="text" placeholder="ТОВ Назва або ФОП ПІБ"></div>
+      <div class="field"><label>Телефон</label><input type="tel" placeholder="+380 XX XXX XX XX"></div>
+      <div class="field"><label>Email</label><input type="email" placeholder="email@company.ua"></div>
+    `;
   }
 
-  // Сесії (з localStorage)
-  const sessions = parseInt(localStorage.getItem('sc_sessions') || '0') + 1;
-  localStorage.setItem('sc_sessions', sessions);
-  document.getElementById('statUsers').textContent = sessions;
+  else if (type === 'addLegal') {
+    document.getElementById('modalTitle').textContent = 'Додати юридичну особу';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="field"><label>Тип</label>
+        <select><option>ФОП</option><option>ТОВ</option></select>
+      </div>
+      <div class="field"><label>Повна назва</label><input type="text" placeholder="ФОП Прізвище Ім\'я По-батькові або ТОВ «Назва»"></div>
+      <div class="field"><label>ІПН / ЄДРПОУ</label><input type="text" placeholder="1234567890"></div>
+      <div class="field"><label>IBAN</label><input type="text" placeholder="UA12 3456 7890 1234 5678 9012 3456 7"></div>
+      <div class="field"><label>Банк</label><input type="text" placeholder="АТ КБ «ПриватБанк»"></div>
+      <div class="field"><label>МФО</label><input type="text" placeholder="305299"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn" onclick="closeModal()">Скасувати</button>
+        <button class="btn btn-orange" onclick="saveLegal()">Зберегти</button>
+      </div>
+    `;
+    return;
+  }
+
+  else if (type === 'assignLegal') {
+    document.getElementById('modalTitle').textContent = 'Призначити юрособу клієнту';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="field"><label>Дистриб\'ютор</label>
+        <select>
+          <option>ТОВ Мегадіст (DIST-F0JI84)</option>
+          <option>ФОП Коваленко (DIST-A2B3C4)</option>
+          <option>ТОВ Фреш Логістик (DIST-X9Y8Z7)</option>
+        </select>
+      </div>
+      <div class="field"><label>Юридична особа</label>
+        <select>
+          <option>ФОП Іваненко Сергій Олексійович</option>
+          <option>+ Додати нову...</option>
+        </select>
+      </div>
+      <div class="field"><label>Коментар (необов\'язково)</label><input type="text" placeholder="Причина вибору юрособи"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn" onclick="closeModal()">Скасувати</button>
+        <button class="btn btn-orange" onclick="alert(\'✅ Збережено\');closeModal()">Зберегти</button>
+      </div>
+    `;
+    return;
+  }
+
+  else if (type === 'issueInvoice') {
+    document.getElementById('modalTitle').textContent = '📄 Виставити рахунок';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="field"><label>Дистриб\'ютор</label>
+        <select onchange="calcInvoice(this)">
+          <option value="">— Вибрати —</option>
+          <option value="7">ТОВ Мегадіст · 7 магазинів</option>
+          <option value="5">ФОП Коваленко · 5 магазинів</option>
+          <option value="2">ТОВ Фреш Логістик · 2 магазини</option>
+        </select>
+      </div>
+      <div class="field"><label>Юридична особа</label>
+        <select>
+          <option>ФОП Іваненко Сергій Олексійович</option>
+        </select>
+      </div>
+      <div class="field"><label>Сума (розраховується автоматично)</label>
+        <input type="text" id="invoiceAmount" value="—" readonly style="background:var(--bg);font-weight:700;color:var(--orange)">
+      </div>
+      <div class="field"><label>Місяць оплати</label><input type="month" value="2026-07"></div>
+      <div style="background:var(--blue-light);border-radius:8px;padding:12px;font-size:12px;color:var(--blue);margin-bottom:16px">
+        ℹ️ Рахунок з\'явиться в кабінеті дистриб\'ютора автоматично
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="closeModal()">Скасувати</button>
+        <button class="btn btn-orange" onclick="alert(\'✅ Рахунок виставлено!\');closeModal()">Виставити рахунок</button>
+      </div>
+    `;
+    return;
+  }
 }
 
-// Автологін якщо вже авторизований
-if (sessionStorage.getItem('adminAuth') === '1') {
-  document.getElementById('loginPage').style.display = 'none';
-  document.getElementById('adminPage').style.display = 'flex';
-  initAdmin();
+// Тарифна сітка
+const TARIFFS = [
+  {min:1,  max:10,  price:300},
+  {min:11, max:20,  price:600},
+  {min:21, max:50,  price:1500},
+  {min:51, max:100, price:3000},
+  {min:101,max:9999,price:5000}
+];
+
+function calcInvoice(sel) {
+  const shops = parseInt(sel.value) || 0;
+  if (!shops) { document.getElementById('invoiceAmount').value = '—'; return; }
+  const tier = TARIFFS.find(t => shops >= t.min && shops <= t.max);
+  document.getElementById('invoiceAmount').value = tier ? tier.price + ' грн/міс' : '—';
+}
+
+function saveLegal() {
+  alert('✅ Юрособу збережено');
+  closeModal();
+}
+
+function assignLegal(id) {
+  showModal('assignLegal', id);
+}
+
+function editLegal(id) {
+  showModal('addLegal', id);
+}
+function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+
+// ── ACTIONS ──────────────────────────────────────────────────────
+function confirmPayment(distCode, amount) {
+  if (confirm(`Підтвердити оплату ${amount} грн від ${distCode}?`)) {
+    alert(`✅ Оплату підтверджено. ${distCode} активований до 2 серпня.`);
+  }
+}
+
+function disconnectDist(distCode) {
+  if (confirm(`Відключити ${distCode}? Доступ буде заблоковано.`)) {
+    alert(`🔴 ${distCode} відключено.`);
+  }
+}
+
+function showDistDetails(code) {
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('modalTitle').textContent = 'Дистриб\'ютор ' + code;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;line-height:2;color:var(--text2)">
+      <div><strong>Код:</strong> <span style="font-family:monospace;color:var(--orange)">${code}</span></div>
+      <div><strong>Магазини:</strong> 7 підключених</div>
+      <div><strong>Тариф:</strong> 300 грн/міс (1–10 магазинів)</div>
+      <div><strong>Реєстрація:</strong> 1 червня 2026</div>
+      <div><strong>Пробний до:</strong> —</div>
+      <div><strong>Остання оплата:</strong> 3 червня 2026</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-green" onclick="confirmPayment('${code}',300)">✓ Оплачено</button>
+      <button class="btn btn-red" onclick="disconnectDist('${code}')">Відключити</button>
+    </div>
+  `;
+}
+
+function saveIban() {
+  document.getElementById('ibanValue').textContent = document.getElementById('editIban').value;
+  document.getElementById('ibanName').textContent = document.getElementById('editName').value;
+  document.getElementById('ibanCode').textContent = document.getElementById('editCode').value;
+  document.getElementById('ibanBank').textContent = document.getElementById('editBank').value;
+  document.getElementById('ibanMfo').textContent = document.getElementById('editMfo').value;
+  alert('✅ Реквізити збережено');
+}
+</script>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.getElementById("formLogin").style.display = tab==="login" ? "block" : "none";
+  document.getElementById("formReg").style.display = tab==="reg" ? "block" : "none";
+  document.getElementById("tabLogin").style.color = tab==="login" ? "#e84c2b" : "#6b7280";
+  document.getElementById("tabLogin").style.borderBottom = tab==="login" ? "2px solid #e84c2b" : "none";
+  document.getElementById("tabReg").style.color = tab==="reg" ? "#e84c2b" : "#6b7280";
+  document.getElementById("tabReg").style.borderBottom = tab==="reg" ? "2px solid #e84c2b" : "none";
+  document.getElementById("authMsg").style.display = "none";
 }
 </script>
 </body>
