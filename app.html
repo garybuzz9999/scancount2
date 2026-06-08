@@ -1347,25 +1347,40 @@ async function fbCheckStaffCode(code) {
     const app = getApps().length ? getApps()[0] : initializeApp(cfg);
     const db = getFirestore(app);
 
-    // 1. Шукаємо в колекції 'staff' (додані через app.html)
+    // 1. Шукаємо в колекції 'staff' (додані через index.html або app.html)
     try {
-      const q1 = query(collection(db,'staff'), where('code','==',code), where('active','==',true));
+      console.log('[LOGIN] Шукаємо в staff, code=', code);
+      // Пробуємо без where('active') бо може не бути індексу
+      const q1 = query(collection(db,'staff'), where('code','==',code));
       const snap1 = await getDocs(q1);
-      if (!snap1.empty) return { id: snap1.docs[0].id, ...snap1.docs[0].data() };
-    } catch(e) { console.warn('staff lookup:', e.message); }
-
-    // 2. Шукаємо в users.distStaff[] (додані через index.html кабінет дистриб'ютора)
-    // distStaff — масив об'єктів зі staffCode
-    try {
-      const q2 = query(collection(db,'users'), where('type','==','distributor'));
-      const snap2 = await getDocs(q2);
-      for (const docSnap of snap2.docs) {
-        const data = docSnap.data();
-        const staff = (data.distStaff || []).find(s => s.staffCode === code && s.active !== false);
-        if (staff) return { ...staff, distId: docSnap.id, distName: data.name };
+      console.log('[LOGIN] staff знайдено:', snap1.size, 'документів');
+      if (!snap1.empty) {
+        const d = { id: snap1.docs[0].id, ...snap1.docs[0].data() };
+        console.log('[LOGIN] staff дані:', d);
+        if (d.active === false) { console.warn('[LOGIN] Співробітник деактивований'); return null; }
+        return d;
       }
-    } catch(e) { console.warn('users.distStaff lookup:', e.message); }
+    } catch(e) { 
+      console.error('[LOGIN] staff lookup ПОМИЛКА:', e.code, e.message);
+      // Показуємо помилку юзеру для діагностики
+      const msgEl = document.getElementById('loginMsg');
+      if (msgEl) { msgEl.className='msg err'; msgEl.textContent='Firebase: ' + e.code + ' — ' + e.message; }
+    }
 
+    // 2. Шукаємо також по staffCode (синонім поля code)
+    try {
+      console.log('[LOGIN] Шукаємо по staffCode=', code);
+      const q3 = query(collection(db,'staff'), where('staffCode','==',code));
+      const snap3 = await getDocs(q3);
+      console.log('[LOGIN] staffCode знайдено:', snap3.size);
+      if (!snap3.empty) {
+        const d = { id: snap3.docs[0].id, ...snap3.docs[0].data() };
+        if (d.active === false) return null;
+        return d;
+      }
+    } catch(e) { console.error('[LOGIN] staffCode lookup ПОМИЛКА:', e.code, e.message); }
+
+    console.warn('[LOGIN] Код не знайдено в жодній колекції:', code);
     return null;
   } catch(e) {
     console.error('fbCheckStaffCode error:', e);
