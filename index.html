@@ -86,14 +86,29 @@
     };
 
     // ── AUTH STATE LISTENER ──────────────────────────────────────
+    // Прапор: true під час реєстрації — ігноруємо onAuthStateChanged
+    window._registering = false;
+
     onAuthStateChanged(auth, async (firebaseUser) => {
+      // Під час реєстрації профіль ще пишеться — ігноруємо
+      if (window._registering) return;
+
       if (firebaseUser) {
-        // Завантажуємо профіль з Firestore
-        const profile = await getUserProfile(firebaseUser.uid);
+        // Спроба 1: одразу читаємо профіль
+        let profile = await getUserProfile(firebaseUser.uid);
+
+        // Якщо профілю немає — чекаємо 2 сек і пробуємо ще раз
+        // (Firebase Auth спрацьовує раніше ніж Firestore запис завершується)
+        if (!profile) {
+          await new Promise(r => setTimeout(r, 2000));
+          profile = await getUserProfile(firebaseUser.uid);
+        }
+
         if (profile) {
           window._setUserFromAuth(profile);
         } else {
-          // Профілю немає — виходимо (edge case)
+          // Профіль реально відсутній — виходимо
+          console.warn('Профіль користувача не знайдено в Firestore:', firebaseUser.uid);
           await signOut(auth);
         }
       } else {
@@ -107,15 +122,20 @@
       const msgId = 'rShopMsg';
       try {
         window.showModalMsg(msgId, 'ok', 'Реєструємо...');
+        window._registering = true; // блокуємо onAuthStateChanged під час запису профілю
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
         const shopCode = generateCode('SHOP');
         const profile = { type:'shop', name, email, phone, owner, shopCode,
-                          distCode: null, hasDistAccess: false, uid: cred.user.uid };
+                          distCode: null, hasDistAccess: false, uid: cred.user.uid,
+                          createdAt: new Date().toISOString() };
         await saveUserProfile(cred.user.uid, profile);
+        window._registering = false; // профіль записано — дозволяємо
+        window._setUserFromAuth(profile); // відразу застосовуємо профіль
         window.showModalMsg(msgId, 'ok', '✓ Зареєстровано! Доступний переоблік і цінники.');
         setTimeout(() => window.closeModal(), 1800);
       } catch(e) {
+        window._registering = false;
         const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
                   : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
                   : e.message;
@@ -128,15 +148,20 @@
       const msgId = 'rDistMsg';
       try {
         window.showModalMsg(msgId, 'ok', 'Реєструємо...');
+        window._registering = true; // блокуємо onAuthStateChanged під час запису профілю
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
         const distCode = generateCode('DIST');
         const profile = { type:'distributor', name, email, phone, contact, city: city||'',
-                          distCode, hasDistAccess: true, uid: cred.user.uid };
+                          distCode, hasDistAccess: true, uid: cred.user.uid,
+                          createdAt: new Date().toISOString() };
         await saveUserProfile(cred.user.uid, profile);
+        window._registering = false; // профіль записано — дозволяємо
+        window._setUserFromAuth(profile); // відразу застосовуємо профіль
         window.showModalMsg(msgId, 'ok', '✓ Зареєстровано! 14 днів безкоштовно. Ваш код: ' + distCode);
         setTimeout(() => window.closeModal(), 2500);
       } catch(e) {
+        window._registering = false;
         const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
                   : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
                   : e.message;
