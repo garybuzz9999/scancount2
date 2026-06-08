@@ -2362,6 +2362,8 @@ window.closeCamScanner = function() {
   // ── setUser: викликається з Firebase onAuthStateChanged ──
   function setUser(user) {
     currentUser = user;
+    // Зберігаємо глобально для доступу з async функцій (addStaff тощо)
+    window._currentUser = user;
     updateAccessUI();
     if(user && user.type === 'distributor') {
       setTimeout(() => showDistPanel(), 300);
@@ -2859,15 +2861,7 @@ window.closeCamScanner = function() {
   // ── ПАНЕЛЬ ДИСТРИБ'ЮТОРА ──
   let distStaff = []; // Завантажується з Firestore в loadDistStaffFromFirestore()
   let distInvoices = []; // Завантажується з Firestore в loadDistInvoicesFromFirestore()
-  let distShops = [
-    {name:'Продукти Петренка',    phone:'+380 67 123 45 67', invoices:24, last:'сьогодні 10:23', shopCode:'SHOP-PT7K2M'},
-    {name:'Гастроном №1',         phone:'+380 50 234 56 78', invoices:18, last:'сьогодні 09:45', shopCode:'SHOP-GN9X4P'},
-    {name:'Мінімаркет Sunrise',   phone:'+380 63 345 67 89', invoices:11, last:'сьогодні 11:10', shopCode:'SHOP-SR3B6Q'},
-    {name:'Продукти 24/7',        phone:'+380 67 456 78 90', invoices:7,  last:'вчора 18:30',    shopCode:'SHOP-P2R1T7'},
-    {name:'Супермаркет Весна',    phone:'+380 50 567 89 01', invoices:32, last:'сьогодні 12:05', shopCode:'SHOP-VS8N0W'},
-    {name:'Продукти Іванова',     phone:'+380 63 678 90 12', invoices:15, last:'сьогодні 13:20', shopCode:'SHOP-IV4L5E'},
-    {name:'Гастроном Центральний',phone:'+380 67 789 01 23', invoices:8,  last:'сьогодні 14:15', shopCode:'SHOP-GC6M3A'},
-  ];
+  let distShops = []; // Завантажується з Firestore — магазини що підключились через distCode
 
   function showDistPanel() {
     document.getElementById('mainContent').style.display = 'none';
@@ -2914,7 +2908,7 @@ window.closeCamScanner = function() {
     if(tab === 'staff')    renderDistStaff();
     if(tab === 'invoices') { renderDistInvoices(distInvoices); loadDistInvoicesFromFirestore(); }
     if(tab === 'queue')    renderDistQueue();
-    if(tab === 'shops')    renderDistShops();
+    if(tab === 'shops')    { renderDistShops(); loadDistShopsFromFirestore(); }
     // Badge
     const pending = distInvoices.filter(i => i.status === 'pending').length;
     const badge = document.getElementById('tabInvBadge');
@@ -3058,7 +3052,15 @@ window.closeCamScanner = function() {
     showModalMsg('staffMsg','ok','Зберігаю...');
     const staffCode = 'STAFF-' + Math.random().toString(36).substr(2,6).toUpperCase();
     const color = staffColors[distStaff.length % staffColors.length];
-    const distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : 'unknown';
+    // Чекаємо auth — якщо currentUser ще null, беремо з window._currentUser (профіль)
+    let distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!distUid && window._currentUser) distUid = window._currentUser.uid;
+    if (!distUid) {
+      // Останній fallback — чекаємо 1 сек
+      await new Promise(r => setTimeout(r, 1000));
+      distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    }
+    if (!distUid) { showModalMsg('staffMsg','err','Помилка: не авторизований. Перезайдіть.'); return; }
     const staffObj = { name, phone, role, active: true, color, processed: 0, staffCode,
                        code: staffCode, distId: distUid, createdAt: new Date().toISOString() };
     try {
@@ -3115,7 +3117,8 @@ window.closeCamScanner = function() {
   // Завантажує персонал з Firestore при відкритті кабінету
   // ── ЗАВАНТАЖЕННЯ РЕАЛЬНИХ ДАНИХ З FIRESTORE ─────────────────
   async function loadDistStaffFromFirestore() {
-    const distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    let distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!distUid && window._currentUser) distUid = window._currentUser.uid;
     if (!distUid) { console.warn('loadDistStaff: не авторизований'); return; }
 
     // Показуємо індикатор завантаження
@@ -3142,8 +3145,36 @@ window.closeCamScanner = function() {
     }
   }
 
+  async function loadDistShopsFromFirestore() {
+    let distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!distUid && window._currentUser) distUid = window._currentUser.uid;
+    if (!distUid) return;
+    const distCode = window._currentUser ? window._currentUser.distCode : null;
+    if (!distCode) return;
+    try {
+      const { collection: col, query: q, where, getDocs, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { getApps, initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+      const app2 = getApps().length ? getApps()[0] : initializeApp(cfg);
+      const db2 = gfs(app2);
+      // Магазини які підключились через distCode дистриб'ютора
+      const snap = await getDocs(q(col(db2, 'connections'), where('distCode', '==', distCode)));
+      if (!snap.empty) {
+        distShops = snap.docs.map(d => {
+          const data = d.data();
+          return { fbId: d.id, name: data.shopName || data.name || 'Магазин', 
+                   phone: data.shopPhone || data.phone || '', 
+                   shopCode: data.shopCode || '', 
+                   invoices: 0, last: '—' };
+        });
+        renderDistShops();
+      }
+    } catch(e) { console.warn('loadDistShops:', e.message); }
+  }
+
   async function loadDistInvoicesFromFirestore() {
-    const distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    let distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!distUid && window._currentUser) distUid = window._currentUser.uid;
     if (!distUid) return;
 
     const invTbody = document.getElementById('distInvTable');
