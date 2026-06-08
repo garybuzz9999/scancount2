@@ -86,29 +86,14 @@
     };
 
     // ── AUTH STATE LISTENER ──────────────────────────────────────
-    // Прапор: true під час реєстрації — ігноруємо onAuthStateChanged
-    window._registering = false;
-
     onAuthStateChanged(auth, async (firebaseUser) => {
-      // Під час реєстрації профіль ще пишеться — ігноруємо
-      if (window._registering) return;
-
       if (firebaseUser) {
-        // Спроба 1: одразу читаємо профіль
-        let profile = await getUserProfile(firebaseUser.uid);
-
-        // Якщо профілю немає — чекаємо 2 сек і пробуємо ще раз
-        // (Firebase Auth спрацьовує раніше ніж Firestore запис завершується)
-        if (!profile) {
-          await new Promise(r => setTimeout(r, 2000));
-          profile = await getUserProfile(firebaseUser.uid);
-        }
-
+        // Завантажуємо профіль з Firestore
+        const profile = await getUserProfile(firebaseUser.uid);
         if (profile) {
           window._setUserFromAuth(profile);
         } else {
-          // Профіль реально відсутній — виходимо
-          console.warn('Профіль користувача не знайдено в Firestore:', firebaseUser.uid);
+          // Профілю немає — виходимо (edge case)
           await signOut(auth);
         }
       } else {
@@ -122,20 +107,15 @@
       const msgId = 'rShopMsg';
       try {
         window.showModalMsg(msgId, 'ok', 'Реєструємо...');
-        window._registering = true; // блокуємо onAuthStateChanged під час запису профілю
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
         const shopCode = generateCode('SHOP');
         const profile = { type:'shop', name, email, phone, owner, shopCode,
-                          distCode: null, hasDistAccess: false, uid: cred.user.uid,
-                          createdAt: new Date().toISOString() };
+                          distCode: null, hasDistAccess: false, uid: cred.user.uid };
         await saveUserProfile(cred.user.uid, profile);
-        window._registering = false; // профіль записано — дозволяємо
-        window._setUserFromAuth(profile); // відразу застосовуємо профіль
         window.showModalMsg(msgId, 'ok', '✓ Зареєстровано! Доступний переоблік і цінники.');
         setTimeout(() => window.closeModal(), 1800);
       } catch(e) {
-        window._registering = false;
         const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
                   : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
                   : e.message;
@@ -148,20 +128,15 @@
       const msgId = 'rDistMsg';
       try {
         window.showModalMsg(msgId, 'ok', 'Реєструємо...');
-        window._registering = true; // блокуємо onAuthStateChanged під час запису профілю
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
         const distCode = generateCode('DIST');
         const profile = { type:'distributor', name, email, phone, contact, city: city||'',
-                          distCode, hasDistAccess: true, uid: cred.user.uid,
-                          createdAt: new Date().toISOString() };
+                          distCode, hasDistAccess: true, uid: cred.user.uid };
         await saveUserProfile(cred.user.uid, profile);
-        window._registering = false; // профіль записано — дозволяємо
-        window._setUserFromAuth(profile); // відразу застосовуємо профіль
         window.showModalMsg(msgId, 'ok', '✓ Зареєстровано! 14 днів безкоштовно. Ваш код: ' + distCode);
         setTimeout(() => window.closeModal(), 2500);
       } catch(e) {
-        window._registering = false;
         const msg = e.code === 'auth/email-already-in-use' ? 'Email вже використовується'
                   : e.code === 'auth/weak-password'        ? 'Пароль занадто простий'
                   : e.message;
@@ -2937,6 +2912,7 @@ window.closeCamScanner = function() {
       }
     })();
     renderDistTab('staff');
+    loadDistStaffFromFirestore();
   }
 
   function showDistTab(tab) {
@@ -3086,30 +3062,86 @@ window.closeCamScanner = function() {
     document.getElementById('staffMsg').textContent = '';
   }
 
-  function addStaff() {
+  async function addStaff() {
     const name  = document.getElementById('staffName').value.trim();
     const phone = document.getElementById('staffPhone').value.trim();
     const role  = document.getElementById('staffRole').value;
     if(!name)  return showModalMsg('staffMsg','err','Введіть ім\'я');
     if(!phone) return showModalMsg('staffMsg','err','Введіть телефон');
+    showModalMsg('staffMsg','ok','Зберігаю...');
     const staffCode = 'STAFF-' + Math.random().toString(36).substr(2,6).toUpperCase();
-    distStaff.push({ name, phone, role, active: true, color: staffColors[distStaff.length % staffColors.length], processed: 0, staffCode });
-    showModalMsg('staffMsg','ok','✓ Додано! Код: ' + staffCode);
-    setTimeout(() => { closeModal(); renderDistStaff(); renderDistQueue(); }, 1800);
+    const color = staffColors[distStaff.length % staffColors.length];
+    const distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : 'unknown';
+    const staffObj = { name, phone, role, active: true, color, processed: 0, staffCode,
+                       code: staffCode, distId: distUid, createdAt: new Date().toISOString() };
+    try {
+      const { addDoc, collection: col, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { getApps, initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+      const app2 = getApps().length ? getApps()[0] : initializeApp(cfg);
+      const db2 = gfs(app2);
+      const ref = await addDoc(col(db2, 'staff'), staffObj);
+      staffObj.fbId = ref.id;
+      distStaff.push(staffObj);
+      showModalMsg('staffMsg','ok','✓ Додано! Код: ' + staffCode);
+      setTimeout(() => { closeModal(); renderDistStaff(); renderDistQueue(); }, 1800);
+    } catch(e) {
+      distStaff.push(staffObj);
+      showModalMsg('staffMsg','ok','✓ Локально. Код: ' + staffCode);
+      setTimeout(() => { closeModal(); renderDistStaff(); renderDistQueue(); }, 2000);
+    }
   }
 
-  function toggleStaff(idx) {
+  async function toggleStaff(idx) {
     distStaff[idx].active = !distStaff[idx].active;
+    if (distStaff[idx].fbId) {
+      try {
+        const { doc: fbDoc, updateDoc, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        const { getApps, initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+        const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+        const app2 = getApps().length ? getApps()[0] : initializeApp(cfg);
+        await updateDoc(fbDoc(gfs(app2), 'staff', distStaff[idx].fbId), { active: distStaff[idx].active });
+      } catch(e) {}
+    }
     renderDistStaff();
     renderDistQueue();
   }
 
-  function removeStaff(idx) {
+  async function removeStaff(idx) {
     if(confirm('Видалити ' + distStaff[idx].name + '?')) {
+      const s = distStaff[idx];
       distStaff.splice(idx, 1);
+      if (s.fbId) {
+        try {
+          const { doc: fbDoc, deleteDoc, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+          const { getApps, initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+          const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+          const app2 = getApps().length ? getApps()[0] : initializeApp(cfg);
+          await deleteDoc(fbDoc(gfs(app2), 'staff', s.fbId));
+        } catch(e) {}
+      }
       renderDistStaff();
       renderDistQueue();
     }
+  }
+
+  // Завантажує персонал з Firestore при відкритті кабінету
+  async function loadDistStaffFromFirestore() {
+    const distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!distUid) return;
+    try {
+      const { collection: col, query: q, where, getDocs, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { getApps, initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+      const app2 = getApps().length ? getApps()[0] : initializeApp(cfg);
+      const db2 = gfs(app2);
+      const snap = await getDocs(q(col(db2, 'staff'), where('distId', '==', distUid)));
+      if (!snap.empty) {
+        distStaff = snap.docs.map(d => ({ fbId: d.id, ...d.data() }));
+        renderDistStaff();
+        renderDistQueue();
+      }
+    } catch(e) { console.warn('loadDistStaff:', e.message); }
   }
 
   function viewDistInv(id) {
