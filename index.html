@@ -2857,22 +2857,8 @@ window.closeCamScanner = function() {
   }
 
   // ── ПАНЕЛЬ ДИСТРИБ'ЮТОРА ──
-  let distStaff = [
-    {name:'Іваненко Олег',   phone:'+380671234561', role:'merchandise', active:true,  color:'#3b7cf4', processed:12, staffCode:'STAFF-OL7K2M'},
-    {name:'Петренко Василь', phone:'+380671234562', role:'merchandise', active:true,  color:'#22c55e', processed:18, staffCode:'STAFF-VA9X4P'},
-    {name:'Сидоренко Марія', phone:'+380671234563', role:'merchandise', active:false, color:'#f59e0b', processed:9,  staffCode:'STAFF-MA3B6Q'},
-    {name:'Коваль Дмитро',   phone:'+380671234564', role:'expeditor',   active:true,  color:'#e879f9', processed:0,  staffCode:'STAFF-DM8R1T'},
-    {name:'Мельник Ірина',   phone:'+380671234565', role:'expeditor',   active:true,  color:'#fb923c', processed:0,  staffCode:'STAFF-IR5N0W'},
-  ];
-  let distInvoices = [
-    {id:'RET-M3K9A2', shop:'Продукти Петренка',      type:'return',     sum:868.50,  time:'10:23', geo:true,  status:'pending',   assignee:'Іваненко О.', items:[{n:'Молоко 1л',qty:10,price:45.90},{n:'Хліб пшеничний',qty:5,price:28.50},{n:'Масло вершкове',qty:3,price:89.00}]},
-    {id:'RET-B7X1P4', shop:'Гастроном №1',            type:'return',     sum:1240.00, time:'09:45', geo:true,  status:'confirmed', assignee:'Петренко В.', items:[{n:'Йогурт полуниця',qty:20,price:32.00},{n:'Сир твердий',qty:8,price:85.00}]},
-    {id:'CORR-Q2W8E5',shop:'Мінімаркет Sunrise',      type:'corrective', sum:540.00,  time:'11:10', geo:true,  status:'pending',   assignee:'Іваненко О.', items:[{n:'Вода 1.5л',qty:30,price:18.00}]},
-    {id:'RET-N5R3T7', shop:'Продукти 24/7',            type:'return',     sum:320.50,  time:'08:30', geo:false, status:'rejected',  assignee:'Петренко В.', items:[{n:'Кефір 1л',qty:5,price:38.50},{n:'Сметана 400г',qty:6,price:24.00}]},
-    {id:'CORR-K8L2M6',shop:'Супермаркет Весна',        type:'corrective', sum:2100.00, time:'12:05', geo:true,  status:'pending',   assignee:null,          items:[{n:'Ковбаса варена',qty:10,price:120.00},{n:'Сосиски молочні',qty:15,price:80.00}]},
-    {id:'RET-H4J6K1', shop:'Продукти Іванова',         type:'return',     sum:450.00,  time:'13:20', geo:true,  status:'confirmed', assignee:'Петренко В.', items:[{n:'Олія соняшникова 1л',qty:10,price:45.00}]},
-    {id:'RET-Z9X7C3', shop:'Гастроном Центральний',    type:'return',     sum:680.00,  time:'14:15', geo:true,  status:'pending',   assignee:null,          items:[{n:'Цукор 1кг',qty:20,price:34.00}]},
-  ];
+  let distStaff = []; // Завантажується з Firestore в loadDistStaffFromFirestore()
+  let distInvoices = []; // Завантажується з Firestore в loadDistInvoicesFromFirestore()
   let distShops = [
     {name:'Продукти Петренка',    phone:'+380 67 123 45 67', invoices:24, last:'сьогодні 10:23', shopCode:'SHOP-PT7K2M'},
     {name:'Гастроном №1',         phone:'+380 50 234 56 78', invoices:18, last:'сьогодні 09:45', shopCode:'SHOP-GN9X4P'},
@@ -2913,6 +2899,7 @@ window.closeCamScanner = function() {
     })();
     renderDistTab('staff');
     loadDistStaffFromFirestore();
+    loadDistInvoicesFromFirestore();
   }
 
   function showDistTab(tab) {
@@ -2925,7 +2912,7 @@ window.closeCamScanner = function() {
 
   function renderDistTab(tab) {
     if(tab === 'staff')    renderDistStaff();
-    if(tab === 'invoices') renderDistInvoices(distInvoices);
+    if(tab === 'invoices') { renderDistInvoices(distInvoices); loadDistInvoicesFromFirestore(); }
     if(tab === 'queue')    renderDistQueue();
     if(tab === 'shops')    renderDistShops();
     // Badge
@@ -3126,22 +3113,84 @@ window.closeCamScanner = function() {
   }
 
   // Завантажує персонал з Firestore при відкритті кабінету
+  // ── ЗАВАНТАЖЕННЯ РЕАЛЬНИХ ДАНИХ З FIRESTORE ─────────────────
   async function loadDistStaffFromFirestore() {
     const distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
-    if (!distUid) return;
+    if (!distUid) { console.warn('loadDistStaff: не авторизований'); return; }
+
+    // Показуємо індикатор завантаження
+    const tbody = document.getElementById('staffTable');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text2)">⏳ Завантаження...</td></tr>';
+
     try {
-      const { collection: col, query: q, where, getDocs, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { collection: col, query: q, where, orderBy, getDocs, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
       const { getApps, initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
       const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
       const app2 = getApps().length ? getApps()[0] : initializeApp(cfg);
       const db2 = gfs(app2);
-      const snap = await getDocs(q(col(db2, 'staff'), where('distId', '==', distUid)));
-      if (!snap.empty) {
-        distStaff = snap.docs.map(d => ({ fbId: d.id, ...d.data() }));
-        renderDistStaff();
-        renderDistQueue();
+
+      // Завантажуємо персонал
+      const staffSnap = await getDocs(q(col(db2, 'staff'), where('distId', '==', distUid)));
+      distStaff = staffSnap.docs.map(d => ({ fbId: d.id, ...d.data() }));
+      renderDistStaff();
+      renderDistQueue();
+
+      console.log(`[Firestore] Персонал завантажено: ${distStaff.length} осіб`);
+    } catch(e) {
+      console.error('loadDistStaff помилка:', e.code, e.message);
+      if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--danger)">❌ Помилка: ${e.code || e.message}</td></tr>`;
+    }
+  }
+
+  async function loadDistInvoicesFromFirestore() {
+    const distUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!distUid) return;
+
+    const invTbody = document.getElementById('distInvTable');
+    if (invTbody) invTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text2)">⏳ Завантаження накладних...</td></tr>';
+
+    try {
+      const { collection: col, query: q, where, orderBy, getDocs, getFirestore: gfs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { getApps, initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const cfg = {apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",authDomain:"scancount-b39ed.firebaseapp.com",projectId:"scancount-b39ed",storageBucket:"scancount-b39ed.firebasestorage.app",messagingSenderId:"725968441059",appId:"1:725968441059:web:52578672a121f80c22bfd6"};
+      const app2 = getApps().length ? getApps()[0] : initializeApp(cfg);
+      const db2 = gfs(app2);
+
+      // Завантажуємо накладні за distCode або distUid
+      const distCode = (typeof currentUser !== 'undefined') ? currentUser.distCode : null;
+      let invSnap;
+      try {
+        invSnap = await getDocs(q(col(db2, 'invoices'), where('distUid', '==', distUid)));
+      } catch(e2) {
+        invSnap = { docs: [] };
       }
-    } catch(e) { console.warn('loadDistStaff:', e.message); }
+
+      // Також шукаємо по distCode якщо є
+      let extra = [];
+      if (distCode) {
+        try {
+          const snap2 = await getDocs(q(col(db2, 'invoices'), where('distCode', '==', distCode)));
+          extra = snap2.docs.map(d => ({ fbId: d.id, ...d.data() }));
+        } catch(e3) {}
+      }
+
+      const fromUid = invSnap.docs.map(d => ({ fbId: d.id, ...d.data() }));
+      // Об'єднуємо без дублів по id
+      const merged = [...fromUid];
+      extra.forEach(e => { if (!merged.find(x => x.id === e.id || x.fbId === e.fbId)) merged.push(e); });
+
+      distInvoices = merged.sort((a, b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+      renderDistInvoices(distInvoices);
+
+      // Оновлюємо badge
+      const pending = distInvoices.filter(i => i.status === 'pending').length;
+      const badge = document.getElementById('tabInvBadge');
+      if (badge) { badge.textContent = pending > 0 ? pending : ''; badge.style.display = pending > 0 ? 'inline' : 'none'; }
+
+      console.log(`[Firestore] Накладні завантажено: ${distInvoices.length}`);
+    } catch(e) {
+      console.error('loadDistInvoices помилка:', e.code, e.message);
+    }
   }
 
   function viewDistInv(id) {
