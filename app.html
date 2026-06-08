@@ -567,7 +567,7 @@ tbody tr:hover td{background:var(--surface2)}
     <div class="login-title" id="loginTitle">Вхід</div>
     <div class="field">
       <label>Код входу</label>
-      <input id="codeInput" type="text" placeholder="XXX-XXXX" maxlength="8"
+      <input id="codeInput" type="text" placeholder="STAFF-XXXXXX" maxlength="14"
         oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9-]/g,'')"
         onkeydown="if(event.key==='Enter')doLogin()">
     </div>
@@ -1268,11 +1268,12 @@ function selectRole(role) {
 }
 
 function doLogin() {
-  const code = document.getElementById('codeInput').value.trim();
+  const code = document.getElementById('codeInput').value.trim().toUpperCase();
   const msg = document.getElementById('loginMsg');
-  if (!code||code.length<4) { msg.className='msg err'; msg.textContent='Введіть код входу'; return; }
-  // Спочатку перевіряємо локально, потім Firebase
-  const localOk = CODES[currentRole]&&CODES[currentRole].includes(code);
+  if (!code || code.length < 4) { msg.className='msg err'; msg.textContent='Введіть код входу'; return; }
+
+  // Спочатку перевіряємо локальний масив (тестові дані)
+  const localOk = CODES[currentRole] && CODES[currentRole].includes(code);
   if (localOk) {
     msg.className='msg ok'; msg.textContent='✓ Код прийнято — входимо...';
     setTimeout(()=>{
@@ -1290,32 +1291,85 @@ function doLogin() {
         if (e) { document.getElementById('drvName').textContent=e.name; document.getElementById('drvCode').textContent=e.code; }
         document.getElementById('view-driver').classList.add('active');
       }
-    },800);
-  } else if (window.fbCheckCode) {
-    // Перевіряємо в Firebase
-    msg.className='msg ok'; msg.textContent='Перевіряю...';
-    window.fbCheckCode(code).then(staff => {
-      if (staff) {
-        msg.className='msg ok'; msg.textContent='✓ Код прийнято — входимо...';
-        setTimeout(()=>{
-          document.getElementById('view-login').style.display='none';
-          const role = staff.role;
-          if (role==='merch') {
-            document.getElementById('merchName').textContent=staff.name;
-            document.getElementById('merchAvatar').textContent=staff.name[0];
-            document.getElementById('view-merch').classList.add('active');
-          } else if (role==='exp') {
-            document.getElementById('drvName').textContent=staff.name;
-            document.getElementById('drvCode').textContent=staff.code;
-            document.getElementById('view-driver').classList.add('active');
-          }
-        },800);
+    }, 800);
+    return;
+  }
+
+  // Перевіряємо в Firestore — шукаємо в users де distStaff містить наш код
+  // (так зберігає index.html кабінет дистриб'ютора)
+  msg.className='msg ok'; msg.textContent='Перевіряю...';
+  fbCheckStaffCode(code).then(staff => {
+    if (!staff) {
+      msg.className='msg err'; msg.textContent='Невірний код. Зверніться до бухгалтера.';
+      return;
+    }
+    msg.className='msg ok'; msg.textContent='✓ Код прийнято — входимо...';
+    setTimeout(()=>{
+      document.getElementById('view-login').style.display='none';
+      // Визначаємо роль по role або по prefix коду
+      const role = staff.role || (code.startsWith('STAFF-') ? currentRole : (code.startsWith('MRC-') ? 'merch' : 'exp'));
+      const isMerch = role === 'merch' || role === 'merchandise' || currentRole === 'merch';
+      const isBuh   = role === 'buh' || currentRole === 'buh';
+      if (isBuh) {
+        document.getElementById('buhName').textContent = staff.name || 'Бухгалтер';
+        document.getElementById('buhAvatar').textContent = (staff.name||'Б')[0];
+        document.getElementById('view-buh').classList.add('active');
+      } else if (isMerch) {
+        document.getElementById('merchName').textContent = staff.name;
+        document.getElementById('merchAvatar').textContent = (staff.name||'М')[0];
+        document.getElementById('view-merch').classList.add('active');
+        setTimeout(loadMerchInvoices, 500);
+        setInterval(()=>{ document.getElementById('mTime').textContent=new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'}); },1000);
       } else {
-        msg.className='msg err'; msg.textContent='Невірний код. Зверніться до бухгалтера.';
+        // Експедитор
+        document.getElementById('drvName').textContent = staff.name;
+        document.getElementById('drvCode').textContent = staff.staffCode || staff.code || code;
+        document.getElementById('view-driver').classList.add('active');
       }
-    });
-  } else {
-    msg.className='msg err'; msg.textContent='Невірний код. Зверніться до бухгалтера.';
+    }, 800);
+  });
+}
+
+// Шукає staffCode в колекції users (масив distStaff) — так зберігає index.html
+// АБО в колекції staff (так зберігає app.html)
+async function fbCheckStaffCode(code) {
+  try {
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const { getFirestore, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const cfg = {
+      apiKey:"AIzaSyCCSQqjFSQIcRaZ-g8g003tKUE_TgOXOz8",
+      authDomain:"scancount-b39ed.firebaseapp.com",
+      projectId:"scancount-b39ed",
+      storageBucket:"scancount-b39ed.firebasestorage.app",
+      messagingSenderId:"725968441059",
+      appId:"1:725968441059:web:52578672a121f80c22bfd6"
+    };
+    const app = getApps().length ? getApps()[0] : initializeApp(cfg);
+    const db = getFirestore(app);
+
+    // 1. Шукаємо в колекції 'staff' (додані через app.html)
+    try {
+      const q1 = query(collection(db,'staff'), where('code','==',code), where('active','==',true));
+      const snap1 = await getDocs(q1);
+      if (!snap1.empty) return { id: snap1.docs[0].id, ...snap1.docs[0].data() };
+    } catch(e) { console.warn('staff lookup:', e.message); }
+
+    // 2. Шукаємо в users.distStaff[] (додані через index.html кабінет дистриб'ютора)
+    // distStaff — масив об'єктів зі staffCode
+    try {
+      const q2 = query(collection(db,'users'), where('type','==','distributor'));
+      const snap2 = await getDocs(q2);
+      for (const docSnap of snap2.docs) {
+        const data = docSnap.data();
+        const staff = (data.distStaff || []).find(s => s.staffCode === code && s.active !== false);
+        if (staff) return { ...staff, distId: docSnap.id, distName: data.name };
+      }
+    } catch(e) { console.warn('users.distStaff lookup:', e.message); }
+
+    return null;
+  } catch(e) {
+    console.error('fbCheckStaffCode error:', e);
+    return null;
   }
 }
 
@@ -1492,8 +1546,9 @@ async function addMerch() {
   const msg=document.getElementById('mMsg');
   if (!n||!p){msg.className='msg err';msg.textContent='Заповніть всі поля';return;}
   const colors=['#4f8ef7','#2dd4a0','#f5c842','#f5a442','#e879f9'];
-  const code='MRC-'+Math.random().toString(36).substr(2,4).toUpperCase();
-  const staffData = {name:n, phone:p, code, role:'merch', active:true, distId:'default'};
+  // Генеруємо код в форматі STAFF-XXXXXX (сумісний з index.html)
+  const code='STAFF-'+Math.random().toString(36).substr(2,6).toUpperCase();
+  const staffData = {name:n, phone:p, code, staffCode:code, role:'merch', active:true, distId:'default'};
   if (window.fbAddStaff) {
     msg.className='msg ok'; msg.textContent='Зберігаю...';
     const id = await window.fbAddStaff(staffData);
@@ -1509,8 +1564,9 @@ async function addExp() {
   const p=document.getElementById('ePhone').value.trim();
   const msg=document.getElementById('eMsg');
   if (!n||!p){msg.className='msg err';msg.textContent='Заповніть всі поля';return;}
-  const code='EXP-'+Math.random().toString(36).substr(2,4).toUpperCase();
-  const staffData = {name:n, phone:p, code, role:'exp', active:true, distId:'default'};
+  // Генеруємо код в форматі STAFF-XXXXXX (сумісний з index.html)
+  const code='STAFF-'+Math.random().toString(36).substr(2,6).toUpperCase();
+  const staffData = {name:n, phone:p, code, staffCode:code, role:'exp', active:true, distId:'default'};
   if (window.fbAddStaff) {
     msg.className='msg ok'; msg.textContent='Зберігаю...';
     const id = await window.fbAddStaff(staffData);
