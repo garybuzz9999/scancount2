@@ -44,6 +44,18 @@
     const auth = getAuth(app);
     const db   = getFirestore(app);
 
+    // ── ФІКС: цей <script type="module"> має власний приватний scope.
+    // Класичні <script> нижче (наприклад, firebaseLookupEAN/firebaseSaveProduct)
+    // намагалися використовувати db/doc/getDoc/setDoc та _fbReady напряму —
+    // але ці імена тут невидимі зовні, тож запити мовчки провалювались
+    // (ловились порожнім catch(e){}) і завжди йшли одразу у зовнішній Worker.
+    // Прокидаємо потрібне на window, щоб класичні скрипти могли дістати.
+    window.fsDb     = db;
+    window.doc      = doc;
+    window.getDoc   = getDoc;
+    window.setDoc   = setDoc;
+    window._fbReady = true;
+
     // ── HELPERS ──────────────────────────────────────────────────
 
     function generateCode(prefix) {
@@ -278,12 +290,12 @@ window.closeCamScanner = function() {
       // 1. Спочатку Firestore (наша база перекладених назв)
       if (_fbReady) {
         try {
-          const snap = await getDoc(doc(db, 'products', ean));
+          const snap = await getDoc(doc(fsDb, 'products', ean));
           if (snap.exists()) {
             console.log("📦 From Firestore:", ean);
             return snap.data();
           }
-        } catch(e) {}
+        } catch(e) { console.warn("Firestore lookup failed:", e.message); }
       }
       // 2. Потім Worker (зовнішня база)
       try {
@@ -330,7 +342,7 @@ window.closeCamScanner = function() {
       // 2. Зберігаємо в Firestore (хмара, доступна з будь-якого пристрою)
       if (_fbReady) {
         try {
-          await setDoc(doc(db, 'products', ean), {
+          await setDoc(doc(fsDb, 'products', ean), {
             ean, title, unit: unit || 'шт',
             updatedAt: new Date().toISOString()
           }, { merge: true });
@@ -345,7 +357,7 @@ window.closeCamScanner = function() {
     window.firestoreLookupEAN = async function(ean) {
       if (!_fbReady) return null;
       try {
-        const snap = await getDoc(doc(db, 'products', ean));
+        const snap = await getDoc(doc(fsDb, 'products', ean));
         if (snap.exists()) return snap.data();
         return null;
       } catch(e) { return null; }
