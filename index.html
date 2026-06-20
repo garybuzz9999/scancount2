@@ -376,16 +376,26 @@ window.closeCamScanner = function() {
   let shopDists = [];
   let pendingShopDist = null;
 
+  function showShopTab(tab) {
+    ['overview','dists'].forEach(t => {
+      const cap = t.charAt(0).toUpperCase() + t.slice(1);
+      document.getElementById('shopTab' + cap).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('shopTabBtn' + cap).classList.toggle('active', t === tab);
+    });
+    if (tab === 'dists') renderShopDists();
+  }
+  window.showShopTab = showShopTab;
+
   function showShopPanel() {
     document.getElementById('mainContent').style.display = 'none';
     document.getElementById('distPanel').style.display = 'none';
     document.getElementById('shopPanel').style.display = 'block';
     document.getElementById('shopFolderPanel').style.display = 'none';
+    showShopTab('overview');
     if(document.getElementById('shopScanPanel')) document.getElementById('shopScanPanel').style.display = 'none';
     if(document.getElementById('shopSuccessPanel')) document.getElementById('shopSuccessPanel').style.display = 'none';
     if(currentUser) {
       document.getElementById('shopPanelName').textContent = currentUser.name || 'Мій магазин';
-      document.getElementById('shopPanelAvatar').textContent = (currentUser.name || 'М')[0].toUpperCase();
       if (!currentUser.shopCode) {
         // shopCode вже є в Firestore профілі — якщо порожній, це edge case
         currentUser.shopCode = generateShopCode();
@@ -394,7 +404,6 @@ window.closeCamScanner = function() {
       }
       // Показуємо код магазину
       document.getElementById('shopCodeDisplay').textContent = currentUser.shopCode;
-      document.getElementById('shopCodeBlock').style.display = 'block';
     }
     renderShopDists();
   }
@@ -1298,18 +1307,6 @@ window.closeCamScanner = function() {
 </head>
 <body>
 
-<!-- ПОСТІЙНИЙ ІНДИКАТОР "ВИ В СИСТЕМІ" — фіксований, видимий в будь-якому розділі (лендінг/магазин/дистриб'ютор) -->
-<div id="userBadge" style="display:none;position:fixed;top:12px;right:12px;z-index:9999;align-items:center;gap:8px;flex-wrap:wrap;max-width:calc(100vw - 24px)">
-  <div style="display:flex;align-items:center;gap:8px;background:#1a2b45;border:1.5px solid #2e4566;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">
-    <span id="userBadgeIcon">🏪</span>
-    <span id="userBadgeText">—</span>
-  </div>
-  <button onclick="confirmLogout()" style="display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 12px;background:#fff;border:1.5px solid #e54d4d;border-radius:999px;font-size:12px;font-weight:700;color:#c92a2a;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    Вийти
-  </button>
-</div>
-
 <!-- ПОРОЖНІЙ ХЕДЕР -->
 
 <main>
@@ -1435,26 +1432,31 @@ window.closeCamScanner = function() {
   <!-- КАБІНЕТ МАГАЗИНУ -->
   <div id="shopPanel" style="display:none">
     <div style="max-width:480px;margin:0 auto;padding:16px">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
-        <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;flex-shrink:0" id="shopPanelAvatar">М</div>
-        <div style="flex:1">
-          <div style="font-size:15px;font-weight:700;color:var(--text)" id="shopPanelName">Мій магазин</div>
-          <div style="font-size:11px;color:var(--text3)">Кабінет магазину</div>
+
+      <!-- Заголовок (як у distPanel) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">
+            🏪 <span id="shopPanelName">Мій магазин</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            Код магазину: <span id="shopCodeDisplay" style="font-family:var(--mono);color:var(--accent);font-weight:700;letter-spacing:2px">SHOP-XXXXXX</span>
+            <button onclick="copyShopCode()" style="height:24px;padding:0 8px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface3);color:var(--text2)">Копіювати</button>
+          </div>
         </div>
-        <button onclick="goToRecount()" style="height:32px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2)">📋 Переоблік</button>
-        <button onclick="logout()" style="height:32px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--danger)">Вийти</button>
+        <button onclick="logout()" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;background:var(--danger-bg);border:1px solid var(--danger);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--danger);cursor:pointer">
+          Вийти
+        </button>
       </div>
 
-      <!-- Код магазину -->
-      <div id="shopCodeBlock" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Ваш код магазину</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--green);letter-spacing:3px;flex:1" id="shopCodeDisplay">SHOP-XXXXXX</div>
-          <button onclick="copyShopCode()" style="height:28px;padding:0 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface3);color:var(--text2)">Копіювати</button>
-        </div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">Повідомте цей код дистриб'ютору для ідентифікації</div>
+      <!-- Вкладки (як у distPanel) -->
+      <div style="display:flex;gap:4px;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:0">
+        <button class="dist-tab active" id="shopTabBtnOverview" onclick="showShopTab('overview')">🏠 Огляд</button>
+        <button class="dist-tab" id="shopTabBtnDists" onclick="showShopTab('dists')">🏭 Дистриб'ютори</button>
       </div>
 
+      <!-- Вкладка: Огляд -->
+      <div id="shopTabOverview">
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px">Безкоштовно назавжди <span style="font-size:9px;font-weight:800;background:#d1fae5;color:#059669;padding:2px 6px;border-radius:20px;margin-left:6px">FREE</span></div>
 
       <button onclick="goToRecount()" style="width:100%;padding:16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;gap:14px;margin-bottom:10px;text-align:left">
@@ -1471,12 +1473,16 @@ window.closeCamScanner = function() {
         <div style="width:44px;height:44px;border-radius:10px;background:rgba(37,99,235,0.1);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📷</div>
         <div><div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:2px">Сканувати накладну</div><div style="font-size:11px;color:var(--text2)">Підтвердити отримання товару від дистриб'ютора</div></div>
       </button>
+      </div>
 
+      <!-- Вкладка: Дистриб'ютори -->
+      <div id="shopTabDists" style="display:none">
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px">Мої дистриб'ютори <span style="font-size:9px;font-weight:800;background:#fef3c7;color:#d97706;padding:2px 6px;border-radius:20px;margin-left:6px">PRO</span></div>
 
       <div id="shopDistList"></div>
 
       <button onclick="openShopModal('addDist')" style="width:100%;padding:14px;border-radius:var(--radius);border:2px dashed var(--border2);background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:var(--text3);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px">+ Додати дистриб'ютора</button>
+      </div>
     </div>
   </div>
 
@@ -2452,28 +2458,11 @@ window.closeCamScanner = function() {
   function updateAuthButtons() {
     const regBtn   = document.querySelector('[onclick="openModal(\'register\')"]');
     const loginBtn = document.querySelector('[onclick="openModal(\'login\')"]');
-    const badge    = document.getElementById('userBadge');
-    if(!currentUser) {
-      if(badge) badge.style.display = 'none';
-      return;
-    }
+    if(!currentUser) return;
     if(regBtn) regBtn.style.display = 'none';
     if(loginBtn) loginBtn.style.display = 'none';
-    if(badge) {
-      badge.style.display = 'flex';
-      document.getElementById('userBadgeIcon').textContent = currentUser.type === 'shop' ? '🏪' : '🏭';
-      const codePart = currentUser.type === 'shop' ? (currentUser.shopCode || '') : (currentUser.distCode || '');
-      document.getElementById('userBadgeText').textContent =
-        (currentUser.name || '—') + (codePart ? ' · ' + codePart : '');
-    }
   }
 
-  function confirmLogout() {
-    if (confirm('Вийти з кабінету?')) {
-      if (typeof window.fbLogout === 'function') window.fbLogout();
-    }
-  }
-  window.confirmLogout = confirmLogout;
 
   function switchMode(mode) {
     if(mode === currentMode) return;
