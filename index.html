@@ -23,6 +23,8 @@
       doc,
       setDoc,
       getDoc,
+      addDoc,
+      deleteDoc,
       collection,
       query,
       where,
@@ -43,6 +45,19 @@
     const app  = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db   = getFirestore(app);
+
+    // Прокидаємо Firestore наружу для класичних <script> нижче (під fs-префіксом,
+    // щоб не конфліктувати з локальними іменами типу 'db' для CSV-кешу)
+    window.fsDb         = db;
+    window.fsDoc        = doc;
+    window.fsSetDoc     = setDoc;
+    window.fsGetDoc     = getDoc;
+    window.fsAddDoc     = addDoc;
+    window.fsDeleteDoc  = deleteDoc;
+    window.fsCollection = collection;
+    window.fsQuery      = query;
+    window.fsWhere      = where;
+    window.fsGetDocs    = getDocs;
 
     // ── HELPERS ──────────────────────────────────────────────────
 
@@ -377,14 +392,112 @@ window.closeCamScanner = function() {
   let pendingShopDist = null;
 
   function showShopTab(tab) {
-    ['overview','dists'].forEach(t => {
+    ['overview','dists','recounts','invoices'].forEach(t => {
       const cap = t.charAt(0).toUpperCase() + t.slice(1);
       document.getElementById('shopTab' + cap).style.display = t === tab ? 'block' : 'none';
       document.getElementById('shopTabBtn' + cap).classList.toggle('active', t === tab);
     });
-    if (tab === 'dists') renderShopDists();
+    if (tab === 'dists')     renderShopDists();
+    if (tab === 'recounts')  renderShopRecounts();
+    if (tab === 'invoices')  renderShopInvoices();
   }
   window.showShopTab = showShopTab;
+
+  // ── ІСТОРІЯ ДОКУМЕНТІВ МАГАЗИНУ (Переобліки / Накладні), Firestore ──
+  const SHOP_DOC_RETENTION_DAYS = 46;
+  let _shopDocsCache = {}; // id -> дані документа, для кнопки "Відкрити"
+
+  async function saveShopDocToFirestore(payload) {
+    try {
+      if (!window._currentUser || !window._currentUser.uid) return;
+      if (typeof window.fsAddDoc !== 'function') return;
+      await window.fsAddDoc(window.fsCollection(window.fsDb, 'shop_documents'), {
+        shopUid: window._currentUser.uid,
+        ...payload,
+        createdAt: new Date().toISOString()
+      });
+    } catch(e) {
+      console.warn('Не вдалося зберегти документ в історію:', e.message);
+    }
+  }
+  window.saveShopDocToFirestore = saveShopDocToFirestore;
+
+  async function loadShopDocs(typeFilter) {
+    if (!window._currentUser || !window._currentUser.uid) return [];
+    if (typeof window.fsGetDocs !== 'function') return [];
+    try {
+      const q = window.fsQuery(
+        window.fsCollection(window.fsDb, 'shop_documents'),
+        window.fsWhere('shopUid', '==', window._currentUser.uid)
+      );
+      const snap = await window.fsGetDocs(q);
+      const cutoff = Date.now() - SHOP_DOC_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+      const types  = Array.isArray(typeFilter) ? typeFilter : [typeFilter];
+      const fresh  = [];
+      const expiredRefs = [];
+      snap.forEach(d => {
+        const data = d.data();
+        const ts = data.createdAt ? new Date(data.createdAt).getTime() : 0;
+        if (ts < cutoff) { expiredRefs.push(d.ref); return; }
+        if (types.includes(data.type)) fresh.push({ id: d.id, ...data });
+      });
+      // Автовидалення застарілих (>46 днів) документів — best-effort, у фоні
+      expiredRefs.forEach(ref => { window.fsDeleteDoc(ref).catch(()=>{}); });
+      fresh.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+      return fresh;
+    } catch(e) {
+      console.warn('Не вдалося завантажити історію документів:', e.message);
+      return [];
+    }
+  }
+
+  function renderShopDocsTable(containerId, docs, emptyMsg) {
+    const el = document.getElementById(containerId);
+    if (!docs.length) {
+      el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);font-size:13px">' + emptyMsg + '</div>';
+      return;
+    }
+    const typeLabel = { recount: 'Переоблік', return: 'Повернення', corrective: 'Коригування' };
+    el.innerHTML = `
+      <div class="tbl-card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Дата</th><th>№ документа</th><th>Тип</th><th style="text-align:right">Сума, грн</th><th></th></tr></thead>
+            <tbody>
+              ${docs.map(d => `
+                <tr>
+                  <td>${d.dateStr || ''}</td>
+                  <td style="font-family:monospace">${d.invNum || ''}</td>
+                  <td>${typeLabel[d.type] || d.type}</td>
+                  <td style="text-align:right">${(d.total||0).toFixed(2)}</td>
+                  <td style="text-align:center"><button onclick="openSavedShopDoc('${d.id}')" style="height:28px;padding:0 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface3);color:var(--text2)">Відкрити</button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  async function renderShopRecounts() {
+    document.getElementById('shopRecountsList').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);font-size:13px">Завантаження...</div>';
+    const docs = await loadShopDocs('recount');
+    docs.forEach(d => _shopDocsCache[d.id] = d);
+    renderShopDocsTable('shopRecountsList', docs, 'Переобліків ще немає.<br>Збережені переобліки зберігаються 46 днів.');
+  }
+
+  async function renderShopInvoices() {
+    document.getElementById('shopInvoicesList').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);font-size:13px">Завантаження...</div>';
+    const docs = await loadShopDocs(['return','corrective']);
+    docs.forEach(d => _shopDocsCache[d.id] = d);
+    renderShopDocsTable('shopInvoicesList', docs, 'Накладних ще немає.<br>Повернення та коригування зберігаються 46 днів.');
+  }
+
+  window.openSavedShopDoc = function(id) {
+    const d = _shopDocsCache[id];
+    if (!d || !d.html) { alert('Документ недоступний.'); return; }
+    const blob = new Blob([d.html], {type:'text/html;charset=utf-8'});
+    window.open(URL.createObjectURL(blob), '_blank');
+  };
 
   function showShopPanel() {
     document.getElementById('mainContent').style.display = 'none';
@@ -1453,6 +1566,8 @@ window.closeCamScanner = function() {
       <div style="display:flex;gap:4px;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:0">
         <button class="dist-tab active" id="shopTabBtnOverview" onclick="showShopTab('overview')">🏠 Огляд</button>
         <button class="dist-tab" id="shopTabBtnDists" onclick="showShopTab('dists')">🏭 Дистриб'ютори</button>
+        <button class="dist-tab" id="shopTabBtnRecounts" onclick="showShopTab('recounts')">🔴 Переобліки</button>
+        <button class="dist-tab" id="shopTabBtnInvoices" onclick="showShopTab('invoices')">🔵 Накладні</button>
       </div>
 
       <!-- Вкладка: Огляд -->
@@ -1482,6 +1597,20 @@ window.closeCamScanner = function() {
       <div id="shopDistList"></div>
 
       <button onclick="openShopModal('addDist')" style="width:100%;padding:14px;border-radius:var(--radius);border:2px dashed var(--border2);background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:var(--text3);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px">+ Додати дистриб'ютора</button>
+      </div>
+
+      <!-- Вкладка: Переобліки -->
+      <div id="shopTabRecounts" style="display:none">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">🔴 Переобліки</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Зберігаються 46 днів, потім видаляються автоматично</div>
+        <div id="shopRecountsList"></div>
+      </div>
+
+      <!-- Вкладка: Накладні (повернення + коригування разом) -->
+      <div id="shopTabInvoices" style="display:none">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">🔵 Накладні</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Повернення та коригування разом · зберігаються 46 днів</div>
+        <div id="shopInvoicesList"></div>
       </div>
     </div>
   </div>
@@ -2734,6 +2863,15 @@ window.closeCamScanner = function() {
     window._distInvNum = null;
     window._origItems  = null;
     docSaved = true;
+
+    // Зберігаємо документ в історію (нові вкладки "Переобліки"/"Накладні")
+    saveShopDocToFirestore({
+      type: isCorrective ? 'corrective' : isReturn ? 'return' : 'recount',
+      invNum, dateStr, total,
+      itemsCount: scanned.length,
+      distNum: distNum || null,
+      html
+    });
   }
 
     async function returnInvoice() {
