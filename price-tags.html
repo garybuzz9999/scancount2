@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
   --bg: #f5f4f0; --surface: #ffffff; --surface2: #f0ede8;
@@ -178,7 +180,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 
   <div class="btn-row">
     <button class="btn" onclick="clearAll()">✕ Очистити</button>
-    <button class="btn btn-print" onclick="printTags()" id="printBtn" disabled>💾 Зберегти PDF</button>
+    <button class="btn btn-print" onclick="savePDF()" id="printBtn" disabled>💾 Зберегти PDF</button>
   </div>
 
   <div class="card" style="background:var(--accent-bg);border-color:#b8cfe8">
@@ -283,6 +285,93 @@ function setPrice(idx, val) {
 
 function removeItem(idx) { items.splice(idx, 1); renderList(); }
 function clearAll() { if (!items.length) return; items = []; renderList(); toast('Очищено'); }
+
+async function savePDF() {
+  const noPrice = items.filter(i => !i.price);
+  if (noPrice.length && !confirm(`${noPrice.length} товарів без ціни. Зберегти PDF?`)) return;
+
+  const btn = document.getElementById('printBtn');
+  const oldLabel = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Генеруємо PDF...';
+
+  try {
+    // Будуємо самі цінники в #printPage (та ж розмітка, що й раніше)
+    document.getElementById('printPage').innerHTML = items.map((item, idx) => `
+      <div class="print-tag">
+        <div class="print-tag-name">${item.title}</div>
+        <div class="print-tag-bottom">
+          <div class="print-tag-price">${item.price || '—'} <span style="font-size:10pt">грн</span></div>
+          <div class="print-tag-unit">за 1 ${item.unit}</div>
+        </div>
+        <div class="print-tag-barcode">
+          <svg id="bc-${idx}"></svg>
+        </div>
+      </div>`).join('');
+
+    items.forEach((item, idx) => {
+      try {
+        JsBarcode('#bc-' + idx, item.ean, {
+          format: 'CODE128', width: 1.5, height: 25,
+          displayValue: true, fontSize: 8, margin: 0, textMargin: 1,
+          lineColor: '#000', background: '#fff'
+        });
+      } catch(e) {
+        const el = document.getElementById('bc-' + idx);
+        if (el) el.parentElement.innerHTML = '<div style="font-size:7pt;text-align:center;font-family:monospace">' + item.ean + '</div>';
+      }
+    });
+
+    // Показуємо #printArea поза екраном (не для глядача, а щоб html2canvas міг
+    // знімати реально відрендерені елементи — без цього розміри/шрифти будуть 0)
+    const area = document.getElementById('printArea');
+    area.style.position = 'fixed';
+    area.style.left = '-99999px';
+    area.style.top = '0';
+    area.style.display = 'block';
+
+    // Невелика пауза, щоб встигли намалюватись SVG штрихкоди
+    await new Promise(r => setTimeout(r, 300));
+
+    const tagEls = Array.from(document.querySelectorAll('.print-tag'));
+
+    // Знімаємо кожен цінник окремо у canvas (3x для чіткого друку)
+    const images = [];
+    for (const el of tagEls) {
+      const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff' });
+      images.push(canvas.toDataURL('image/jpeg', 0.92));
+    }
+
+    area.style.display = 'none';
+
+    // Розкладаємо по сітці A4: поля 5мм, цінник 58×40мм, відступ 3мм
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageW = 210, pageH = 297, margin = 5, tagW = 58, tagH = 40, gap = 3;
+    const cols = Math.floor((pageW - 2 * margin + gap) / (tagW + gap));
+    const rows = Math.floor((pageH - 2 * margin + gap) / (tagH + gap));
+    const perPage = cols * rows;
+
+    images.forEach((dataUrl, i) => {
+      const posOnPage = i % perPage;
+      if (i > 0 && posOnPage === 0) doc.addPage();
+      const col = posOnPage % cols;
+      const row = Math.floor(posOnPage / cols);
+      const x = margin + col * (tagW + gap);
+      const y = margin + row * (tagH + gap);
+      doc.addImage(dataUrl, 'JPEG', x, y, tagW, tagH);
+    });
+
+    doc.save('cinniki-' + Date.now() + '.pdf');
+    toast('PDF збережено на пристрій');
+  } catch(e) {
+    console.error(e);
+    toast('Помилка при створенні PDF: ' + e.message, true);
+  } finally {
+    btn.disabled = !items.length;
+    btn.innerHTML = oldLabel;
+  }
+}
 
 function printTags() {
   const noPrice = items.filter(i => !i.price);
