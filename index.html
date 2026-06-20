@@ -1298,6 +1298,18 @@ window.closeCamScanner = function() {
 </head>
 <body>
 
+<!-- ПОСТІЙНИЙ ІНДИКАТОР "ВИ В СИСТЕМІ" — фіксований, видимий в будь-якому розділі (лендінг/магазин/дистриб'ютор) -->
+<div id="userBadge" style="display:none;position:fixed;top:12px;right:12px;z-index:9999;align-items:center;gap:8px;flex-wrap:wrap;max-width:calc(100vw - 24px)">
+  <div style="display:flex;align-items:center;gap:8px;background:#1a2b45;border:1.5px solid #2e4566;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">
+    <span id="userBadgeIcon">🏪</span>
+    <span id="userBadgeText">—</span>
+  </div>
+  <button onclick="confirmLogout()" style="display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 12px;background:#fff;border:1.5px solid #e54d4d;border-radius:999px;font-size:12px;font-weight:700;color:#c92a2a;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    Вийти
+  </button>
+</div>
+
 <!-- ПОРОЖНІЙ ХЕДЕР -->
 
 <main>
@@ -1567,16 +1579,6 @@ window.closeCamScanner = function() {
         <span style="color:#1a1916;-webkit-text-stroke:3px #fff;text-stroke:3px #fff;paint-order:stroke fill">Scan</span><span style="color:#e84c1e">Count</span>
       </span>
       <div style="font-size:15px;color:var(--text3);font-weight:600;margin-top:3px;letter-spacing:0.3px">сучасний переоблік</div>
-    </div>
-    <div id="userBadge" style="display:none;margin-left:auto;align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px;background:#eef2f7;border:1.5px solid #c9d4e3;border-radius:999px;padding:7px 16px;font-size:13px;font-weight:700;color:#1a2b45;white-space:nowrap">
-        <span id="userBadgeIcon">🏪</span>
-        <span id="userBadgeText">—</span>
-      </div>
-      <button class="btn" onclick="confirmLogout()" style="height:36px;padding:0 14px;font-size:13px;white-space:nowrap">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Вийти
-      </button>
     </div>
   </div>
 
