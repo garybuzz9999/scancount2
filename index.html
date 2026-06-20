@@ -93,7 +93,9 @@
         if (profile) {
           window._setUserFromAuth(profile);
         } else {
-          // Профілю немає — виходимо (edge case)
+          // Профілю немає — раніше виходили тихо, тепер показуємо причину
+          console.warn('⚠️ Auth-акаунт є (uid=' + firebaseUser.uid + '), але документа users/' + firebaseUser.uid + ' у Firestore немає. Можливо, реєстрація цього акаунту не довершилась (старий баг до фіксу). Виходимо.');
+          alert('Не вдалося завантажити профіль цього акаунту.\n\nUID: ' + firebaseUser.uid + '\n\nСкопіюйте цей UID і надішліть розробнику — він додасть профіль у базу вручну. Або зареєструйтесь повторно з іншим email.');
           await signOut(auth);
         }
       } else {
