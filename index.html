@@ -1559,6 +1559,16 @@ window.closeCamScanner = function() {
       </span>
       <div style="font-size:15px;color:var(--text3);font-weight:600;margin-top:3px;letter-spacing:0.3px">сучасний переоблік</div>
     </div>
+    <div id="userBadge" style="display:none;margin-left:auto;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px;background:#eef2f7;border:1.5px solid #c9d4e3;border-radius:999px;padding:7px 16px;font-size:13px;font-weight:700;color:#1a2b45;white-space:nowrap">
+        <span id="userBadgeIcon">🏪</span>
+        <span id="userBadgeText">—</span>
+      </div>
+      <button class="btn" onclick="confirmLogout()" style="height:36px;padding:0 14px;font-size:13px;white-space:nowrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Вийти
+      </button>
+    </div>
   </div>
 
   <!-- TOOLBAR -->
@@ -2392,7 +2402,10 @@ window.closeCamScanner = function() {
       const regBtn = document.querySelector('[onclick="openModal(\'register\')"]');
       const loginBtn = document.querySelector('[onclick="openModal(\'login\')"]');
       if(regBtn) regBtn.style.display = '';
-      if(loginBtn) loginBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Увійти`;
+      if(loginBtn) {
+        loginBtn.style.display = '';
+        loginBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Увійти`;
+      }
     }, 600);
   };
 
@@ -2426,17 +2439,30 @@ window.closeCamScanner = function() {
   }
 
   function updateAuthButtons() {
-    if(!currentUser) return;
-    const regBtn = document.querySelector('[onclick="openModal(\'register\')"]');
+    const regBtn   = document.querySelector('[onclick="openModal(\'register\')"]');
     const loginBtn = document.querySelector('[onclick="openModal(\'login\')"]');
+    const badge    = document.getElementById('userBadge');
+    if(!currentUser) {
+      if(badge) badge.style.display = 'none';
+      return;
+    }
     if(regBtn) regBtn.style.display = 'none';
-    if(loginBtn) {
-      loginBtn.textContent = '';
-      loginBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        ${currentUser.name} <span style="opacity:0.6;font-size:11px">(${currentUser.type === 'shop' ? '🏪' : '🏭'})</span>`;
+    if(loginBtn) loginBtn.style.display = 'none';
+    if(badge) {
+      badge.style.display = 'flex';
+      document.getElementById('userBadgeIcon').textContent = currentUser.type === 'shop' ? '🏪' : '🏭';
+      const codePart = currentUser.type === 'shop' ? (currentUser.shopCode || '') : (currentUser.distCode || '');
+      document.getElementById('userBadgeText').textContent =
+        (currentUser.name || '—') + (codePart ? ' · ' + codePart : '');
     }
   }
+
+  function confirmLogout() {
+    if (confirm('Вийти з кабінету?')) {
+      if (typeof window.fbLogout === 'function') window.fbLogout();
+    }
+  }
+  window.confirmLogout = confirmLogout;
 
   function switchMode(mode) {
     if(mode === currentMode) return;
