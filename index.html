@@ -2275,11 +2275,23 @@ window.closeCamScanner = function() {
       try {
         const fbData = await window.firebaseLookupEAN(bc);
         if(fbData && fbData.title) {
-          const fbTitle = await (window.translateToUk ? window.translateToUk(fbData.title) : Promise.resolve(fbData.title));
+          const fbTitle = (window.translateToUk ? await window.translateToUk(fbData.title) : null) || fbData.title;
           item = { name: fbTitle, unit: fbData.unit || 'шт', price: 0, fromFirebase: true };
           db[bc] = item;
         }
       } catch(e) { console.log('Firebase lookup failed:', e); }
+    }
+
+    // 2b. Прямий виклик Worker якщо firebaseLookupEAN не спрацював
+    if(!item) {
+      try {
+        const r = await fetch('https://scancount-barcode.scancount-service.workers.dev/' + bc, { signal: AbortSignal.timeout(5000) });
+        const d = await r.json();
+        if(d.found && d.title) {
+          item = { name: d.title, unit: d.unit || 'шт', price: 0, fromFirebase: true };
+          db[bc] = item;
+        }
+      } catch(e) { console.log('Direct worker failed:', e); }
     }
 
     // 3. Open Food Facts + UPC ItemDB (завжди доступно)
