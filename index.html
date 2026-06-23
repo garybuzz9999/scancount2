@@ -300,7 +300,7 @@ window.closeCamScanner = function() {
 
     window.firebaseLookupEAN = async function(ean) {
       // 1. Спочатку Firestore (наша база перекладених назв)
-      if (_fbReady) {
+      if (window._fbReady) {
         try {
           const snap = await getDoc(doc(db, 'products', ean));
           if (snap.exists()) {
@@ -313,11 +313,10 @@ window.closeCamScanner = function() {
       try {
         const r = await fetch(WORKER_URL + '/' + ean, { signal: AbortSignal.timeout(5000) });
         const d = await r.json();
-        if(d.found) { alert('✅ Worker знайшов: ' + d.title); return { title: d.title, unit: d.unit || 'шт' }; }
-        alert('❌ Worker: not found для ' + ean);
+        if(d.found) return { title: d.title, unit: d.unit || 'шт' };
         return null;
       } catch(e) {
-        alert('🔴 Worker error: ' + e.message);
+        console.error("Worker lookup error:", e);
         return null;
       }
     };
@@ -353,9 +352,7 @@ window.closeCamScanner = function() {
         localStorage.setItem('scancount_learned', JSON.stringify(local));
       } catch(e) {}
       // 2. Зберігаємо в Firestore (хмара, доступна з будь-якого пристрою)
-      if (_fbReady) {
-        try {
-          await setDoc(doc(db, 'products', ean), {
+      if (window._fbReady) {
             ean, title, unit: unit || 'шт',
             updatedAt: new Date().toISOString()
           }, { merge: true });
@@ -368,7 +365,7 @@ window.closeCamScanner = function() {
 
     // ── LOOKUP PRODUCT FROM FIRESTORE ────────────────────────────
     window.firestoreLookupEAN = async function(ean) {
-      if (!_fbReady) return null;
+      if (!window._fbReady) return null;
       try {
         const snap = await getDoc(doc(db, 'products', ean));
         if (snap.exists()) return snap.data();
@@ -376,7 +373,7 @@ window.closeCamScanner = function() {
       } catch(e) { return null; }
     };
 
-    window._firebaseReady = true;
+    window._fbReady = true;
     console.log("✅ Cloudflare Worker connected");
 
     window.startCameraScan = function() {
@@ -2274,17 +2271,15 @@ window.closeCamScanner = function() {
     }
 
     // 2. Check Cloudflare Worker
-    alert('🔍 item=' + !!item + ' | firebaseLookupEAN=' + typeof window.firebaseLookupEAN);
     if(!item && typeof window.firebaseLookupEAN === 'function') {
       try {
         const fbData = await window.firebaseLookupEAN(bc);
-        alert('📦 fbData=' + JSON.stringify(fbData));
         if(fbData && fbData.title) {
           const fbTitle = await (window.translateToUk ? window.translateToUk(fbData.title) : Promise.resolve(fbData.title));
           item = { name: fbTitle, unit: fbData.unit || 'шт', price: 0, fromFirebase: true };
           db[bc] = item;
         }
-      } catch(e) { alert('❌ lookup error: ' + e.message); }
+      } catch(e) { console.log('Firebase lookup failed:', e); }
     }
 
     // 3. Open Food Facts + UPC ItemDB (завжди доступно)
