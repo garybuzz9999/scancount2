@@ -255,7 +255,7 @@ function renderList() {
       <div class="item-preview">
         <div class="preview-label">превʼю</div>
         <div class="tag-sm">
-          <div class="tag-sm-name">${item.title}</div>
+          <div class="tag-sm-name" id="previewName${idx}">${item.title}</div>
           <div class="tag-sm-bottom">
             <div class="tag-sm-price" id="prev${idx}">${item.price || '—'}<span style="font-size:7px">грн</span></div>
             <div class="tag-sm-unit">за 1 ${item.unit}</div>
@@ -266,12 +266,22 @@ function renderList() {
         </div>
       </div>
       <div class="item-info">
-        <div class="item-name">${item.title}</div>
+        <div id="nameDisplay${idx}" style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span class="item-name" id="nameText${idx}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.title}</span>
+          <button onclick="editName(${idx})" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:6px;padding:2px 7px;font-size:11px;color:var(--text2);cursor:pointer">✏️</button>
+        </div>
+        <div id="nameEdit${idx}" style="display:none;flex-direction:row;gap:6px;align-items:center;margin-bottom:2px">
+          <input id="nameInput${idx}" type="text" value="${item.title}"
+            style="flex:1;padding:5px 8px;border:1.5px solid var(--accent);border-radius:8px;font-size:13px;outline:none"
+            onkeydown="if(event.key===\'Enter\')saveName(${idx});if(event.key===\'Escape\')cancelName(${idx})">
+          <button onclick="saveName(${idx})" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer">OK</button>
+          <button onclick="cancelName(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer">✕</button>
+        </div>
         <div class="item-ean">${item.ean} · ${item.unit}</div>
         <input type="number" class="price-input" placeholder="Ціна, грн"
           value="${item.price}" min="0" step="0.5"
           oninput="setPrice(${idx}, this.value)"
-          onkeydown="if(event.key==='Enter'){let n=document.querySelectorAll('.price-input')[${idx}+1];if(n)n.focus();}">
+          onkeydown="if(event.key===\'Enter\'){let n=document.querySelectorAll(\'.price-input\')[${idx}+1];if(n)n.focus();}">
       </div>
       <button class="del-btn" onclick="removeItem(${idx})">✕</button>
     </div>`).join('');
@@ -284,6 +294,30 @@ function setPrice(idx, val) {
 }
 
 function removeItem(idx) { items.splice(idx, 1); renderList(); }
+
+function editName(idx) {
+  document.getElementById('nameDisplay' + idx).style.display = 'none';
+  const editEl = document.getElementById('nameEdit' + idx);
+  editEl.style.display = 'flex';
+  document.getElementById('nameInput' + idx).focus();
+}
+
+function saveName(idx) {
+  const input = document.getElementById('nameInput' + idx);
+  const newTitle = input.value.trim();
+  if (!newTitle) return;
+  items[idx].title = newTitle;
+  document.getElementById('nameText' + idx).textContent = newTitle;
+  document.getElementById('previewName' + idx).textContent = newTitle;
+  document.getElementById('nameDisplay' + idx).style.display = 'flex';
+  document.getElementById('nameEdit' + idx).style.display = 'none';
+}
+
+function cancelName(idx) {
+  document.getElementById('nameDisplay' + idx).style.display = 'flex';
+  document.getElementById('nameEdit' + idx).style.display = 'none';
+  document.getElementById('nameInput' + idx).value = items[idx].title;
+}
 function clearAll() { if (!items.length) return; items = []; renderList(); toast('Очищено'); }
 
 async function savePDF() {
