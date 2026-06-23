@@ -313,10 +313,11 @@ window.closeCamScanner = function() {
       try {
         const r = await fetch(WORKER_URL + '/' + ean, { signal: AbortSignal.timeout(5000) });
         const d = await r.json();
-        if(d.found) return { title: d.title, unit: d.unit || 'шт' };
+        if(d.found) { alert('✅ Worker знайшов: ' + d.title); return { title: d.title, unit: d.unit || 'шт' }; }
+        alert('❌ Worker: not found для ' + ean);
         return null;
       } catch(e) {
-        console.error("Worker lookup error:", e);
+        alert('🔴 Worker error: ' + e.message);
         return null;
       }
     };
