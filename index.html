@@ -2274,15 +2274,17 @@ window.closeCamScanner = function() {
     }
 
     // 2. Check Cloudflare Worker
+    alert('🔍 item=' + !!item + ' | firebaseLookupEAN=' + typeof window.firebaseLookupEAN);
     if(!item && typeof window.firebaseLookupEAN === 'function') {
       try {
         const fbData = await window.firebaseLookupEAN(bc);
+        alert('📦 fbData=' + JSON.stringify(fbData));
         if(fbData && fbData.title) {
           const fbTitle = await (window.translateToUk ? window.translateToUk(fbData.title) : Promise.resolve(fbData.title));
           item = { name: fbTitle, unit: fbData.unit || 'шт', price: 0, fromFirebase: true };
           db[bc] = item;
         }
-      } catch(e) { console.log('Firebase lookup failed:', e); }
+      } catch(e) { alert('❌ lookup error: ' + e.message); }
     }
 
     // 3. Open Food Facts + UPC ItemDB (завжди доступно)
