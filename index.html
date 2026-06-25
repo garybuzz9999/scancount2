@@ -2120,18 +2120,18 @@ window.closeCamScanner = function() {
     </div>
   </div>
 
-  <div class="modal" id="modalQR" style="display:none;max-width:340px">
+  <div class="modal" id="modalQR" style="display:none;max-width:360px">
     <div class="modal-header">
-      <span class="modal-title" id="qrModalTitle">QR-код накладної</span>
+      <span class="modal-title" id="qrModalTitle">Штрихкод накладної</span>
       <button class="modal-close" onclick="closeModal()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div id="qrBanner" style="margin:-0.5rem -2rem 1.2rem;padding:14px;text-align:center;font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:1px"></div>
     <div style="text-align:center;margin-bottom:1rem">
-      <img id="qrImage" src="" width="200" height="200" alt="QR" style="border:4px solid #e2ddd8;border-radius:10px">
+      <img id="qrImage" src="" width="280" height="80" alt="Штрихкод" style="border:4px solid #e2ddd8;border-radius:10px;image-rendering:pixelated">
     </div>
-    <div id="qrInvNum" style="text-align:center;font-family:var(--mono);font-size:13px;color:var(--text2);margin-bottom:6px;letter-spacing:2px"></div>
+    <div id="qrInvNum" style="text-align:center;font-family:var(--mono);font-size:15px;color:var(--text2);margin-bottom:6px;letter-spacing:3px;font-weight:700"></div>
     <div id="qrDate" style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:1rem"></div>
     <div id="qrTotal" style="text-align:center;font-size:18px;font-weight:700;color:var(--text);margin-bottom:1.2rem"></div>
     <div class="modal-actions">
@@ -2306,7 +2306,8 @@ window.closeCamScanner = function() {
         if(d.status === 1 && d.product) {
           const p = d.product;
           const name = p.product_name_uk || p.product_name_ru || p.product_name || '';
-          if(name && name.length > 2) {
+          const isJunkName = /результати пошуку|search results|not found/i.test(name);
+          if(name && name.length > 2 && !isJunkName) {
             const qty = p.quantity || '';
             const title = name + (qty ? ' ' + qty : '');
             let unit = 'шт';
@@ -2451,8 +2452,9 @@ window.closeCamScanner = function() {
       return `<tr>
         <td style="color:var(--text3);font-size:12px;text-align:center">${i+1}</td>
         <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${escHtml(r.barcode)}</td>
-        <td style="word-break:break-word">
-          ${escHtml(r.name)}
+        <td style="word-break:break-word;padding:4px 6px">
+          <input class="edit-inp" type="text" value="${escHtml(r.name)}" placeholder="Введіть назву..."
+            onchange="editField(${i},'name',this.value)" style="width:100%;min-width:120px;font-size:13px">
           ${r.isManual ? '&nbsp;<span class="badge manual">вручну</span>' : ''}
         </td>
         <td>${unitCell}</td>
@@ -2476,8 +2478,12 @@ window.closeCamScanner = function() {
   }
 
   function editField(idx, field, val) {
-    scanned[idx][field] = parseFloat(val) || 0;
-    renderTable();
+    if(field === 'name') {
+      scanned[idx][field] = val.trim() || 'Без назви';
+    } else {
+      scanned[idx][field] = parseFloat(val) || 0;
+    }
+    if(field !== 'name') renderTable();
     updateStats();
   }
 
@@ -2719,14 +2725,12 @@ window.closeCamScanner = function() {
     const itemsSummary = scanned.map(r => r.barcode + 'x' + r.qty).join(',');
     const needQR = isReturn || isCorrective;
 
-    const qrParts = isCorrective
-      ? ['CORR', distNum, invNum, phone, dateStr, total.toFixed(2)+'грн', itemsSummary]
-      : [invNum, phone, dateStr, total.toFixed(2)+'грн', itemsSummary];
-    const qrData = encodeURIComponent(qrParts.join('|'));
+    // Штрихкод містить тільки номер накладної — сканується будь-яким сканером
+    const barcodeUrl = 'https://barcodeapi.org/api/128/' + encodeURIComponent(invNum);
 
     const qrBlock = needQR
       ? `<div class="qr-block">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${qrData}" width="140" height="140" alt="QR">
+          <img src="${barcodeUrl}" alt="${invNum}" style="max-width:260px;height:70px;display:block;margin:0 auto">
           <div class="qr-label">${invNum}</div>
           ${isCorrective && wasChanged ? '<div style="font-size:12px;color:#7a4a00;margin-top:6px;font-weight:600">⚠️ Є коригування</div>' : ''}
         </div>`
@@ -2873,7 +2877,8 @@ window.closeCamScanner = function() {
       banner.textContent = isCor ? 'КОРИГУЮЧА НАКЛАДНА' : 'НАКЛАДНА НА ПОВЕРНЕННЯ';
       banner.style.background = isCor ? '#c8f0c8' : '#ffe066';
       banner.style.color = isCor ? '#1a5c1a' : '#5a4200';
-      document.getElementById('qrImage').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + qrData;
+      document.getElementById('qrImage').src = 'https://barcodeapi.org/api/128/' + encodeURIComponent(invNum);
+      document.getElementById('qrImage').alt = invNum;
       document.getElementById('qrInvNum').textContent = invNum;
       document.getElementById('qrDate').textContent = dateStr;
       document.getElementById('qrTotal').textContent = 'Сума: ' + total.toFixed(2) + ' грн';
@@ -2996,7 +3001,7 @@ window.closeCamScanner = function() {
     </div>
 
     <div class="qr-block">
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${qrData}" width="120" height="120" alt="QR">
+      <img src="https://barcodeapi.org/api/128/${invNum}" style="max-width:280px;height:70px;display:block;margin:0 auto 8px" alt="${invNum}">
       <div class="qr-label">${invNum}</div>
     </div>
 
