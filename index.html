@@ -294,53 +294,24 @@ window.closeCamScanner = function() {
 // ─────────────────────────────────────────────────────────────────
 
 </script>
-  <!-- Cloudflare Worker -->
+  <!-- AI-пошук назви товару (Cloudflare Worker → Claude Haiku 4.5 + web search) -->
   <script>
-    const WORKER_URL = 'https://scancount-barcode.scancount-service.workers.dev';
+    // Єдине джерело нових назв товарів. Кеш (CSV / Firestore) перевіряється
+    // окремо в processBarcode() ДО виклику цієї функції — сюди доходимо,
+    // тільки якщо товару ще ніде немає.
+    const AI_WORKER_URL = 'https://scancount-ai.scancount-service.workers.dev';
 
-    window.firebaseLookupEAN = async function(ean) {
-      // 1. Спочатку Firestore (наша база перекладених назв)
-      if (window._fbReady) {
-        try {
-          const snap = await getDoc(doc(db, 'products', ean));
-          if (snap.exists()) {
-            console.log("📦 From Firestore:", ean);
-            return snap.data();
-          }
-        } catch(e) {}
-      }
-      // 2. Потім Worker (зовнішня база)
+    window.aiLookupEAN = async function(ean) {
       try {
-        const r = await fetch(WORKER_URL + '/' + ean, { signal: AbortSignal.timeout(5000) });
+        const r = await fetch(AI_WORKER_URL + '/' + ean, { signal: AbortSignal.timeout(15000) });
         const d = await r.json();
-        if(d.found) return { title: d.title, unit: d.unit || 'шт' };
+        if (d.found && d.title) return { title: d.title, unit: d.unit || 'шт' };
         return null;
       } catch(e) {
-        console.error("Worker lookup error:", e);
+        console.log('AI lookup error:', e.message);
         return null;
       }
     };
-
-    // ── TRANSLATE via Google (безкоштовно, без ключа) ──────────
-    window.translateToUk = async function(text) {
-      if (!text) return text;
-      const hasRussian = /[ъыёЪЫЁ]/.test(text);
-      const hasUkrainian = /[іІїЇєЄґҐ]/.test(text);
-      const hasCyrillic = /[а-яА-Я]/.test(text);
-      if (!hasCyrillic) return text; // латиниця — не чіпаємо
-      if (hasUkrainian && !hasRussian) return text; // є українські і нема російських — не чіпаємо
-      // Все інше — перекладаємо (включаючи "Классическая" без ъыё)
-      try {
-        const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=uk&dt=t&q=' + encodeURIComponent(text);
-        const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
-        const d = await r.json();
-        const translated = d[0].map(function(x){ return x[0]; }).join('');
-        return translated || text;
-      } catch(e) {
-        return text;
-      }
-    };
-    // ─────────────────────────────────────────────────────────────
 
     window.firebaseSaveProduct = async function(ean, title, unit) {
       // 1. Зберігаємо локально (швидкий доступ)
@@ -349,7 +320,7 @@ window.closeCamScanner = function() {
         local[ean] = { title, unit: unit || 'шт' };
         localStorage.setItem('scancount_learned', JSON.stringify(local));
       } catch(e) {}
-      // 2. Зберігаємо в Firestore (хмара, доступна з будь-якого пристрою)
+      // 2. Зберігаємо в Firestore (хмара, доступна з будь-якого пристрою / магазину)
       if (window._fbReady) {
         try {
           await setDoc(doc(db, 'products', ean), {
@@ -374,7 +345,6 @@ window.closeCamScanner = function() {
     };
 
     window._fbReady = true;
-    console.log("✅ Cloudflare Worker connected");
 
     window.startCameraScan = function() {
       window.openCamScanner(function(code) {
@@ -869,53 +839,6 @@ window.closeCamScanner = function() {
 
 </script>
 
-  <!-- External barcode lookup: Open Food Facts + UPC Item DB -->
-  <script>
-    function detectUnit(text) {
-      if(!text) return 'шт';
-      if(/кг|kg/i.test(text)) return 'кг';
-      if(/мл|ml/i.test(text)) return 'мл';
-      if(/[0-9]\s*л|[0-9]\s*l/i.test(text)) return 'л';
-      if(/[0-9]\s*г|[0-9]\s*g/i.test(text)) return 'г';
-      return 'шт';
-    }
-
-    window.listexLookup = async function(ean) {
-      // 1. Open Food Facts
-      try {
-        const r = await fetch(
-          'https://world.openfoodfacts.org/api/v2/product/' + ean + '.json?fields=product_name_uk,product_name_ru,product_name,quantity',
-          { signal: AbortSignal.timeout(7000) }
-        );
-        const d = await r.json();
-        console.log('OFF response status:', d.status, 'product:', d.product?.product_name);
-        if(d.status === 1 && d.product) {
-          const p = d.product;
-          const name = p.product_name_uk || p.product_name_ru || p.product_name || '';
-          if(name && name.length > 2) {
-            const qty = p.quantity || '';
-            const title = name + (qty ? ' ' + qty : '');
-            return { title, unit: detectUnit(qty || name) };
-          }
-        }
-      } catch(e) { console.log('OFF:', e.message); }
-
-      // 2. UPC Item DB
-      try {
-        const r2 = await fetch(
-          'https://api.upcitemdb.com/prod/trial/lookup?upc=' + ean,
-          { signal: AbortSignal.timeout(7000) }
-        );
-        const d2 = await r2.json();
-        if(d2.code === 'OK' && d2.items && d2.items[0]) {
-          const title = d2.items[0].title || '';
-          if(title.length > 2) return { title, unit: detectUnit(title) };
-        }
-      } catch(e) { console.log('UPC ItemDB:', e.message); }
-
-      return null;
-    };
-  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1783,7 +1706,7 @@ window.closeCamScanner = function() {
     <div class="manual-panel" id="manualPanel">
       <div class="mp-title">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        Товар не знайдено в базі — введіть вручну
+        Товар не знайдено — введіть вручну
       </div>
       <div class="fields-grid">
         <div class="field">
@@ -2251,109 +2174,54 @@ window.closeCamScanner = function() {
     foundPanel.classList.remove('show');
     manualPanel.classList.remove('show');
 
-    // Show loading
-    console.log('processBarcode called for:', bc);
     const okBtn = document.getElementById('okBtn');
     if(okBtn) { okBtn.textContent = '…'; okBtn.disabled = true; }
 
-    // 1. Check local CSV db first
+    // 1. Локальна CSV-база (ваша власна, завантажена вручну)
     let item = db[bc] ? { ...db[bc], fromLocal: true } : null;
 
-    // 1.5 Check locally learned DB
+    // 2. Локальний кеш вже знайдених AI назв (щоб не питати AI двічі з цього пристрою)
     if(!item) {
       try {
         const learned = JSON.parse(localStorage.getItem('scancount_learned') || '{}');
         if(learned[bc]) {
-          item = { name: learned[bc].title, unit: learned[bc].unit || 'шт', price: 0, fromLocal: true };
+          item = { name: learned[bc].title, unit: learned[bc].unit || 'шт', price: 0, fromAI: true };
           db[bc] = item;
         }
       } catch(e) {}
     }
 
-    // 2. Check Cloudflare Worker
-    if(!item && typeof window.firebaseLookupEAN === 'function') {
+    // 3. Firestore-кеш (той самий кеш, спільний для всіх магазинів/пристроїв)
+    if(!item && typeof window.firestoreLookupEAN === 'function') {
       try {
-        const fbData = await window.firebaseLookupEAN(bc);
-        if(fbData && fbData.title) {
-          const fbTitle = (window.translateToUk ? await window.translateToUk(fbData.title) : null) || fbData.title;
-          item = { name: fbTitle, unit: fbData.unit || 'шт', price: 0, fromFirebase: true };
+        const fsData = await window.firestoreLookupEAN(bc);
+        if(fsData && fsData.title) {
+          item = { name: fsData.title, unit: fsData.unit || 'шт', price: 0, fromAI: true };
           db[bc] = item;
         }
-      } catch(e) { console.log('Firebase lookup failed:', e); }
+      } catch(e) {}
     }
 
-    // 2b. Прямий виклик Worker якщо firebaseLookupEAN не спрацював
+    // 4. AI-пошук (Claude Haiku 4.5 + веб-пошук) — єдине джерело нових назв
     if(!item) {
+      if(okBtn) okBtn.textContent = '🤖 Шукаю...';
       try {
-        const r = await fetch('https://scancount-barcode.scancount-service.workers.dev/' + bc, { signal: AbortSignal.timeout(5000) });
-        const d = await r.json();
-        if(d.found && d.title) {
-          item = { name: d.title, unit: d.unit || 'шт', price: 0, fromFirebase: true };
+        const aiData = await window.aiLookupEAN(bc);
+        if(aiData && aiData.title) {
+          item = { name: aiData.title, unit: aiData.unit || 'шт', price: 0, fromAI: true };
           db[bc] = item;
-        }
-      } catch(e) { console.log('Direct worker failed:', e); }
-    }
-
-    // 3. Open Food Facts + UPC ItemDB (завжди доступно)
-    if(!item) {
-      try {
-        const r = await fetch(
-          'https://world.openfoodfacts.org/api/v2/product/' + bc + '.json?fields=product_name_uk,product_name_ru,product_name,quantity',
-          { signal: AbortSignal.timeout(8000) }
-        );
-        const d = await r.json();
-        console.log('OFF response status:', d.status, 'product:', d.product?.product_name);
-        if(d.status === 1 && d.product) {
-          const p = d.product;
-          const name = p.product_name_uk || p.product_name_ru || p.product_name || '';
-          const isJunkName = /результати пошуку|search results|not found/i.test(name);
-          if(name && name.length > 2 && !isJunkName) {
-            const qty = p.quantity || '';
-            const title = name + (qty ? ' ' + qty : '');
-            let unit = 'шт';
-            if(/кг|kg/i.test(qty+name)) unit = 'кг';
-            else if(/мл|ml/i.test(qty+name)) unit = 'мл';
-            else if(/[0-9]\s*л|[0-9]\s*l/i.test(qty+name)) unit = 'л';
-            else if(/[0-9]\s*г|[0-9]\s*g/i.test(qty+name)) unit = 'г';
-            item = { name: title, unit, price: 0, fromListex: true };
-            db[bc] = item;
-            if(typeof window.firebaseSaveProduct === 'function') {
-              window.firebaseSaveProduct(bc, title, unit);
-            }
+          if(typeof window.firebaseSaveProduct === 'function') {
+            window.firebaseSaveProduct(bc, aiData.title, aiData.unit || 'шт');
           }
         }
-      } catch(e) { console.log('OFF failed:', e.message); }
-    }
-
-    // 4. UPC Item DB як запасний варіант
-    if(!item) {
-      try {
-        const r2 = await fetch(
-          'https://api.upcitemdb.com/prod/trial/lookup?upc=' + bc,
-          { signal: AbortSignal.timeout(7000) }
-        );
-        const d2 = await r2.json();
-        if(d2.code === 'OK' && d2.items && d2.items[0]) {
-          const title = d2.items[0].title || '';
-          if(title.length > 2) {
-            const translatedTitle2 = await (window.translateToUk ? window.translateToUk(title) : Promise.resolve(title));
-            item = { name: translatedTitle2, unit: 'шт', price: 0, fromListex: true };
-            db[bc] = item;
-            if(typeof window.firebaseSaveProduct === 'function') {
-              window.firebaseSaveProduct(bc, title, 'шт');
-            }
-          }
-        }
-      } catch(e) { console.log('UPC ItemDB failed:', e.message); }
+      } catch(e) { console.log('AI lookup failed:', e.message); }
     }
 
     if(okBtn) { okBtn.textContent = 'OK'; okBtn.disabled = false; }
 
     if(item) {
-      const badge = item.fromListex
-        ? ''
-        : item.fromFirebase
-        ? `<span style="font-size:11px;background:#e8eef7;color:#1a4a8a;border-radius:4px;padding:2px 7px;font-weight:700">☁️ Worker</span>`
+      const badge = item.fromAI
+        ? `<span style="font-size:11px;background:#f0eafa;color:#4a1a8a;border-radius:4px;padding:2px 7px;font-weight:700">🤖 AI</span>`
         : `<span style="font-size:11px;background:#e6f4ec;color:#1a6640;border-radius:4px;padding:2px 7px;font-weight:700">📄 CSV</span>`;
       document.getElementById('foundInfo').innerHTML =
         badge + '&nbsp; <strong>' + escHtml(item.name) + '</strong>' +
